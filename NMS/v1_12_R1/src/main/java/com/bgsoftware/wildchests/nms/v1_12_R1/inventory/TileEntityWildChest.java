@@ -201,19 +201,6 @@ public class TileEntityWildChest extends TileEntityChest implements IWorldInvent
 
         ChestData chestData = chest.getData();
 
-        {
-            double x = position.getX() + world.random.nextFloat();
-            double y = position.getY() + world.random.nextFloat();
-            double z = position.getZ() + world.random.nextFloat();
-            for (String particle : chestData.getChestParticles()) {
-                try {
-                    ((WorldServer) world).sendParticles(null, EnumParticle.valueOf(particle),
-                            false, x, y, z, 0, 0.0, 0.0, 0.0, 1.0);
-                } catch (Exception ignored) {
-                }
-            }
-        }
-
         if (--currentCooldown >= 0)
             return;
 
@@ -225,6 +212,19 @@ public class TileEntityWildChest extends TileEntityChest implements IWorldInvent
         }
 
         currentCooldown = ChestUtils.DEFAULT_COOLDOWN;
+
+        if (!chestData.getChestParticles().isEmpty()) {
+            double x = position.getX() + world.random.nextFloat();
+            double y = position.getY() + world.random.nextFloat();
+            double z = position.getZ() + world.random.nextFloat();
+            for (String particle : chestData.getChestParticles()) {
+                try {
+                    ((WorldServer) world).sendParticles(null, EnumParticle.valueOf(particle),
+                            false, x, y, z, 0, 0.0, 0.0, 0.0, 1.0);
+                } catch (Exception ignored) {
+                }
+            }
+        }
 
         if (suctionItems != null) {
             handleSuctionItems(chestData);
@@ -354,4 +354,3 @@ public class TileEntityWildChest extends TileEntityChest implements IWorldInvent
     }
 
 }
-
