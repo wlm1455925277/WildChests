@@ -30,7 +30,7 @@ public final class ChestUtils {
     private static final int DEFAULT_MAX_STACK_SIZE = 64;
 
     private static final WildChestsPlugin plugin = WildChestsPlugin.getPlugin();
-    public static final short DEFAULT_COOLDOWN = 20;
+    public static volatile short DEFAULT_COOLDOWN = 20;
 
     public static final BiPredicate<Item, ChestData> SUCTION_PREDICATE = (item, chestData) -> {
         Key itemKey = item.getItemStack() == null ? Key.of("AIR:0") : Key.of(item.getItemStack());
@@ -39,6 +39,14 @@ public final class ChestUtils {
                 (chestData.getWhitelisted().isEmpty() || chestData.getWhitelisted().contains(itemKey)) &&
                 !chestData.getBlacklisted().contains(itemKey);
     };
+
+    public static void setDefaultCooldown(short ticks) {
+        if (ticks < 1) {
+            DEFAULT_COOLDOWN = 1;
+        } else {
+            DEFAULT_COOLDOWN = ticks;
+        }
+    }
 
     public static List<ItemStack> fixItemStackAmount(ItemStack itemStack, int amount) {
         int maxStackSize = itemStack.getMaxStackSize();

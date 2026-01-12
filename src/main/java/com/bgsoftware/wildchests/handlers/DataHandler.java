@@ -126,6 +126,14 @@ public final class DataHandler {
     }
 
     public void saveDatabase(Chunk chunk) {
+        saveDatabaseInternal(chunk, false);
+    }
+
+    public void saveDatabaseAsync(Chunk chunk) {
+        saveDatabaseInternal(chunk, true);
+    }
+
+    private void saveDatabaseInternal(Chunk chunk, boolean async) {
         List<Chest> chestList = chunk == null ? plugin.getChestsManager().getChests() : plugin.getChestsManager().getChests(chunk);
 
         List<IDatabaseTransaction> transactionsToExecute = new LinkedList<>();
@@ -134,8 +142,15 @@ public final class DataHandler {
         saveStorageUnitsInternal(chestList, transactionsToExecute);
         saveLinkedChestsInternal(chestList, transactionsToExecute);
 
-        if (!transactionsToExecute.isEmpty())
-            DBSession.execute(transactionsToExecute);
+        if (transactionsToExecute.isEmpty())
+            return;
+
+        Runnable execute = () -> DBSession.execute(transactionsToExecute);
+        if (async) {
+            Scheduler.runTaskAsync(execute);
+        } else {
+            execute.run();
+        }
     }
 
     public void insertChest(Chest chest) {

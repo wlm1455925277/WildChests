@@ -11,6 +11,7 @@ import com.bgsoftware.wildchests.hooks.StackerProviderType;
 import com.bgsoftware.wildchests.key.KeySet;
 import com.bgsoftware.wildchests.objects.data.WChestData;
 import com.bgsoftware.wildchests.objects.data.WInventoryData;
+import com.bgsoftware.wildchests.utils.ChestUtils;
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
 import org.bukkit.configuration.ConfigurationSection;
@@ -53,6 +54,7 @@ public final class SettingsHandler {
     public final boolean wildStackerHook;
     public final int maximumPickupDelay;
     public final int maxStacksOnDrop;
+    public final int chestTickInterval;
 
     public SettingsHandler(WildChestsPlugin plugin) {
         WildChestsPlugin.log("Loading configuration started...");
@@ -94,6 +96,8 @@ public final class SettingsHandler {
         wildStackerHook = cfg.getBoolean("hooks.wildstacker", true);
         maximumPickupDelay = cfg.getInt("maximum-pickup-delay", 32767);
         maxStacksOnDrop = cfg.getInt("max-stacks-on-drop", -1);
+        chestTickInterval = Math.max(1, cfg.getInt("chest-tick-interval", 20));
+        ChestUtils.setDefaultCooldown((short) chestTickInterval);
 
         Map<String, Double> prices = new HashMap<>();
 
