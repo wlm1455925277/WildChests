@@ -70,6 +70,9 @@ public final class DataHandler {
     }
 
     public SQLDatabaseTransaction<?> saveChestInventory(Chest chest, @Nullable SQLDatabaseTransaction<?> transaction) {
+        String locationString = serializeLocationInternal(chest.getLocation());
+        if (locationString == null)
+            return transaction;
         if (transaction == null) {
             String tableName = chest instanceof LinkedChest ? "linked_chests" : "chests";
             transaction = new UpdateSQLDatabaseTransaction(tableName,
@@ -81,7 +84,7 @@ public final class DataHandler {
 
         transaction
                 .bindObject(serializeInventoriesInternal(pages))
-                .bindObject(serializeLocationInternal(chest.getLocation()))
+                .bindObject(locationString)
                 .newBatch();
 
         return transaction;
@@ -92,6 +95,9 @@ public final class DataHandler {
     }
 
     public SQLDatabaseTransaction<?> saveStorageUnitItem(WStorageChest chest, @Nullable SQLDatabaseTransaction<?> transaction) {
+        String locationString = serializeLocationInternal(chest.getLocation());
+        if (locationString == null)
+            return transaction;
         if (transaction == null) {
             transaction = new UpdateSQLDatabaseTransaction("storage_units",
                     Arrays.asList("item", "amount"), Arrays.asList("location"));
@@ -100,13 +106,16 @@ public final class DataHandler {
         transaction
                 .bindObject(serializeItemInternal(chest.getItemStackUnsafe()))
                 .bindObject(chest.getAmount().toString())
-                .bindObject(serializeLocationInternal(chest.getLocation()))
+                .bindObject(locationString)
                 .newBatch();
 
         return transaction;
     }
 
     public SQLDatabaseTransaction<?> saveLinkedChest(WLinkedChest linkedChest, @Nullable SQLDatabaseTransaction<?> transaction) {
+        String locationString = serializeLocationInternal(linkedChest.getLocation());
+        if (locationString == null)
+            return transaction;
         if (transaction == null) {
             // UPDATE  SET linked_chest = ? WHERE location = ?
             transaction = new UpdateSQLDatabaseTransaction("linked_chests",
@@ -115,7 +124,7 @@ public final class DataHandler {
 
         transaction
                 .bindObject(serializeLocationInternal(linkedChest.isLinkedIntoChest() ? linkedChest.getLinkedChest().getLocation() : null))
-                .bindObject(serializeLocationInternal(linkedChest.getLocation()))
+                .bindObject(locationString)
                 .newBatch();
 
         return transaction;
@@ -413,7 +422,9 @@ public final class DataHandler {
     }
 
     private static String serializeLocationInternal(@Nullable Location location) {
-        return location == null ? "" : location.getWorld().getName() + ", " + location.getBlockX() + ", " +
+        if (location == null || location.getWorld() == null)
+            return null;
+        return location.getWorld().getName() + ", " + location.getBlockX() + ", " +
                 location.getBlockY() + ", " + location.getBlockZ();
     }
 
