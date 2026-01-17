@@ -60,8 +60,6 @@ public class WildChestBlockEntity extends ChestBlockEntity implements
     private short currentCooldown = ChestUtils.DEFAULT_COOLDOWN;
     private int viewingCount = 0;
 
-    private NonNullList<ItemStack> itemsAsNMSItemsView;
-
     private AABB suctionItems = null;
     private boolean autoCraftMode = false;
     private boolean autoSellMode = false;
@@ -96,11 +94,7 @@ public class WildChestBlockEntity extends ChestBlockEntity implements
 
     @Override
     public NonNullList<ItemStack> getContents() {
-        if (this.itemsAsNMSItemsView == null) {
-            this.itemsAsNMSItemsView = TransformingNonNullList.transform(((WChest) chest).getWildContents(),
-                    ItemStack.EMPTY, WildContainerItemImpl::transform);
-        }
-        return this.itemsAsNMSItemsView;
+        return TransformingNonNullList.transform(((WChest) chest).getWildContents(), ItemStack.EMPTY, WildContainerItemImpl::transform);
     }
 
     @Override
@@ -194,6 +188,18 @@ public class WildChestBlockEntity extends ChestBlockEntity implements
     public void tick(Level level, BlockPos blockPos, BlockState blockState, WildChestBlockEntity blockEntity) {
         ChestData chestData = chest.getData();
 
+        {
+            double x = blockPos.getX() + level.getRandom().nextFloat();
+            double y = blockPos.getY() + level.getRandom().nextFloat();
+            double z = blockPos.getZ() + level.getRandom().nextFloat();
+            for (String particle : chestData.getChestParticles()) {
+                try {
+                    sendParticlesInternal(Particle.valueOf(particle), x, y, z);
+                } catch (Exception ignored) {
+                }
+            }
+        }
+
         if (--currentCooldown >= 0)
             return;
 
@@ -205,18 +211,6 @@ public class WildChestBlockEntity extends ChestBlockEntity implements
         }
 
         currentCooldown = ChestUtils.DEFAULT_COOLDOWN;
-
-        if (!chestData.getChestParticles().isEmpty()) {
-            double x = blockPos.getX() + level.getRandom().nextFloat();
-            double y = blockPos.getY() + level.getRandom().nextFloat();
-            double z = blockPos.getZ() + level.getRandom().nextFloat();
-            for (String particle : chestData.getChestParticles()) {
-                try {
-                    sendParticlesInternal(Particle.valueOf(particle), x, y, z);
-                } catch (Exception ignored) {
-                }
-            }
-        }
 
         if (suctionItems != null) {
             handleSuctionItems(chestData);

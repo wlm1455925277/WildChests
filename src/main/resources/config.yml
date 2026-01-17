@@ -58,8 +58,8 @@ stacker-provider: 'Auto'
 # Built-in prices list.
 # Use the "ID:PRICE" or "ID:DATA:PRICE" formats.
 prices-list:
-  - 'STONE:5' #Each stone will cost $5
-  - 'LOG:0:5' #Only oak logs will cost $5
+- 'STONE:5' #Each stone will cost $5
+- 'LOG:0:5' #Only oak logs will cost $5
 
 # All settings related to hooks
 hooks:
@@ -75,10 +75,6 @@ maximum-pickup-delay: 32767
 # Keep in mind, enabling this feature may cause items to be lost on drop.
 # You can disable this feature by setting it to -1.
 max-stacks-on-drop: -1
-
-# How often (in ticks) WildChests internal chest logic runs.
-# Higher values reduce CPU usage at the cost of slower suction/sell/craft updates.
-chest-tick-interval: 20
 
 # The plugin brings tons of new custom and unique chests to your server. All the chests are configurable, and
 # you can create and mix between them. You can create chests that stores infinite amount of items, chests that
