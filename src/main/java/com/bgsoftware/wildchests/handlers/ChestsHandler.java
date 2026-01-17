@@ -81,6 +81,18 @@ public final class ChestsHandler implements ChestsManager {
                 .put(unloadedChest.position, unloadedChest);
     }
 
+    public List<UnloadedChest> takeUnloadedChestsForChunk(Chunk chunk) {
+        Map<BlockPosition, UnloadedChest> unloadedChests = this.unloadedChests.remove(ChunkPosition.of(chunk));
+        if (unloadedChests == null || unloadedChests.isEmpty())
+            return Collections.emptyList();
+
+        return new LinkedList<>(unloadedChests.values());
+    }
+
+    public WChest loadChest(UnloadedChest unloadedChest) {
+        return loadChestInternal(unloadedChest);
+    }
+
     public void loadChestsData(Map<String, ChestData> chestsData) {
         for (Map.Entry<String, ChestData> entry : chestsData.entrySet()) {
             if (this.chestsData.containsKey(entry.getKey())) {
@@ -224,9 +236,9 @@ public final class ChestsHandler implements ChestsManager {
     }
 
     public void loadChestsForChunk(Chunk chunk) {
-        Map<BlockPosition, UnloadedChest> unloadedChests = this.unloadedChests.remove(ChunkPosition.of(chunk));
-        if (unloadedChests != null)
-            unloadedChests.values().forEach(this::loadChestInternal);
+        List<UnloadedChest> unloadedChests = takeUnloadedChestsForChunk(chunk);
+        if (!unloadedChests.isEmpty())
+            unloadedChests.forEach(this::loadChestInternal);
     }
 
     private WChest createChestInternal(UUID placer, Location location, ChestData chestData) {

@@ -1,8 +1,8 @@
 package com.bgsoftware.wildchests.listeners;
 
 import com.bgsoftware.wildchests.WildChestsPlugin;
+import com.bgsoftware.wildchests.api.objects.chests.Chest;
 import com.bgsoftware.wildchests.objects.chests.WChest;
-import com.bgsoftware.wildchests.scheduler.Scheduler;
 import org.bukkit.Chunk;
 import org.bukkit.Location;
 import org.bukkit.Material;
@@ -27,14 +27,11 @@ public final class ChunksListener implements Listener {
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onChunkUnload(ChunkUnloadEvent e) {
-        plugin.getDataHandler().saveDatabase(e.getChunk());
+        plugin.getDataHandler().enqueueChunkSave(e.getChunk());
     }
 
     public static void handleChunkLoad(WildChestsPlugin plugin, Chunk chunk) {
-        plugin.getChestsManager().loadChestsForChunk(chunk);
-
-        Scheduler.ensureMain(chunk.getWorld(), chunk.getX(), chunk.getZ(), () ->
-                loadChestsForChunk(plugin, chunk));
+        plugin.getDataHandler().enqueueChunkLoad(chunk);
     }
 
     private static void loadChestsForChunk(WildChestsPlugin plugin, Chunk chunk) {
@@ -42,17 +39,23 @@ public final class ChunksListener implements Listener {
             return;
 
         plugin.getChestsManager().getChests(chunk).forEach(chest -> {
-            Location location = chest.getLocation();
-            Material blockType = location.getBlock().getType();
-            if (blockType != Material.CHEST) {
-                WildChestsPlugin.log("Loading chunk " + chunk.getX() + ", " + chunk.getX() + " but found a chest not " +
-                        "associated with a chest block but " + blockType + " at " + location.getWorld().getName() + ", " +
-                        location.getBlockX() + ", " + location.getBlockY() + ", " + location.getBlockZ());
-                chest.remove();
-            } else {
-                ((WChest) chest).onChunkLoad();
-            }
+            handleLoadedChest(plugin, chest);
         });
+    }
+
+    public static void handleLoadedChest(WildChestsPlugin plugin, Chest chest) {
+        Location location = chest.getLocation();
+        Material blockType = location.getBlock().getType();
+        if (blockType != Material.CHEST) {
+            int chunkX = location.getBlockX() >> 4;
+            int chunkZ = location.getBlockZ() >> 4;
+            WildChestsPlugin.log("Loading chunk " + chunkX + ", " + chunkZ + " but found a chest not " +
+                    "associated with a chest block but " + blockType + " at " + location.getWorld().getName() + ", " +
+                    location.getBlockX() + ", " + location.getBlockY() + ", " + location.getBlockZ());
+            chest.remove();
+        } else {
+            ((WChest) chest).onChunkLoad();
+        }
     }
 
 }

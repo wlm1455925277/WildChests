@@ -53,6 +53,11 @@ public final class SettingsHandler {
     public final boolean wildStackerHook;
     public final int maximumPickupDelay;
     public final int maxStacksOnDrop;
+    public final int chunkSaveBatchSize;
+    public final int chunkLoadBatchSize;
+    public final int queueIntervalTicks;
+    public final int particleIntervalTicks;
+    public final int workIntervalTicks;
 
     public SettingsHandler(WildChestsPlugin plugin) {
         WildChestsPlugin.log("Loading configuration started...");
@@ -94,6 +99,11 @@ public final class SettingsHandler {
         wildStackerHook = cfg.getBoolean("hooks.wildstacker", true);
         maximumPickupDelay = cfg.getInt("maximum-pickup-delay", 32767);
         maxStacksOnDrop = cfg.getInt("max-stacks-on-drop", -1);
+        chunkSaveBatchSize = cfg.getInt("performance.chunk-save-batch", 5);
+        chunkLoadBatchSize = cfg.getInt("performance.chunk-load-batch", 5);
+        queueIntervalTicks = cfg.getInt("performance.queue-interval-ticks", 10);
+        particleIntervalTicks = cfg.getInt("performance.particle-interval-ticks", 20);
+        workIntervalTicks = cfg.getInt("performance.work-interval-ticks", 20);
 
         Map<String, Double> prices = new HashMap<>();
 

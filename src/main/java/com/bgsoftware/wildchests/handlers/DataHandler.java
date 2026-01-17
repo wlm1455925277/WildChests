@@ -40,9 +40,13 @@ import java.io.IOException;
 import java.math.BigInteger;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.ArrayDeque;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -50,6 +54,13 @@ import java.util.stream.Collectors;
 public final class DataHandler {
 
     private final WildChestsPlugin plugin;
+    private final ArrayDeque<Chest> saveQueue = new ArrayDeque<>();
+    private final Set<BlockPosition> saveQueuedPositions = new HashSet<>();
+    private final ArrayDeque<ChestsHandler.UnloadedChest> loadQueue = new ArrayDeque<>();
+    private final Set<BlockPosition> loadQueuedPositions = new HashSet<>();
+    private final ArrayDeque<Chest> activationQueue = new ArrayDeque<>();
+    private final Set<BlockPosition> activationQueuedPositions = new HashSet<>();
+    private boolean ioTaskScheduled = false;
 
     public DataHandler(WildChestsPlugin plugin) {
         this.plugin = plugin;
@@ -67,6 +78,47 @@ public final class DataHandler {
                 Bukkit.getPluginManager().disablePlugin(plugin);
             }
         }, 2L);
+    }
+
+    public void enqueueChunkSave(Chunk chunk) {
+        List<Chest> chestList = plugin.getChestsManager().getChests(chunk);
+        if (chestList.isEmpty())
+            return;
+
+        for (Chest chest : chestList) {
+            BlockPosition position = BlockPosition.of(chest.getLocation());
+            if (saveQueuedPositions.add(position))
+                saveQueue.add(chest);
+        }
+
+        scheduleIoTask();
+    }
+
+    public void enqueueChunkLoad(Chunk chunk) {
+        List<ChestsHandler.UnloadedChest> unloadedChests = plugin.getChestsManager().takeUnloadedChestsForChunk(chunk);
+        if (unloadedChests.isEmpty())
+            unloadedChests = null;
+
+        List<Chest> loadedChests = plugin.getChestsManager().getChests(chunk);
+        if (loadedChests.isEmpty() && unloadedChests == null)
+            return;
+
+        if (loadedChests != null && !loadedChests.isEmpty()) {
+            for (Chest chest : loadedChests) {
+                BlockPosition position = BlockPosition.of(chest.getLocation());
+                if (activationQueuedPositions.add(position))
+                    activationQueue.add(chest);
+            }
+        }
+
+        if (unloadedChests != null) {
+            for (ChestsHandler.UnloadedChest unloadedChest : unloadedChests) {
+                if (loadQueuedPositions.add(unloadedChest.position))
+                    loadQueue.add(unloadedChest);
+            }
+        }
+
+        scheduleIoTask();
     }
 
     public SQLDatabaseTransaction<?> saveChestInventory(Chest chest, @Nullable SQLDatabaseTransaction<?> transaction) {
@@ -127,6 +179,12 @@ public final class DataHandler {
 
     public void saveDatabase(Chunk chunk) {
         List<Chest> chestList = chunk == null ? plugin.getChestsManager().getChests() : plugin.getChestsManager().getChests(chunk);
+        saveDatabase(chestList);
+    }
+
+    public void saveDatabase(List<Chest> chestList) {
+        if (chestList.isEmpty())
+            return;
 
         List<IDatabaseTransaction> transactionsToExecute = new LinkedList<>();
 
@@ -136,6 +194,80 @@ public final class DataHandler {
 
         if (!transactionsToExecute.isEmpty())
             DBSession.execute(transactionsToExecute);
+    }
+
+    private void scheduleIoTask() {
+        if (ioTaskScheduled)
+            return;
+
+        ioTaskScheduled = true;
+        Scheduler.runTask(this::processIoQueues, getQueueInterval());
+    }
+
+    private void processIoQueues() {
+        int saveBatchSize = Math.max(1, plugin.getSettings().chunkSaveBatchSize);
+        int loadBatchSize = Math.max(1, plugin.getSettings().chunkLoadBatchSize);
+
+        if (!saveQueue.isEmpty()) {
+            List<Chest> batch = new ArrayList<>(Math.min(saveBatchSize, saveQueue.size()));
+            for (int i = 0; i < saveBatchSize && !saveQueue.isEmpty(); i++) {
+                Chest chest = saveQueue.poll();
+                if (chest == null)
+                    break;
+                saveQueuedPositions.remove(BlockPosition.of(chest.getLocation()));
+                batch.add(chest);
+            }
+
+            if (!batch.isEmpty())
+                saveDatabase(batch);
+        } else {
+            if (!loadQueue.isEmpty()) {
+                for (int i = 0; i < loadBatchSize && !loadQueue.isEmpty(); i++) {
+                    ChestsHandler.UnloadedChest unloadedChest = loadQueue.poll();
+                    if (unloadedChest == null)
+                        break;
+
+                    loadQueuedPositions.remove(unloadedChest.position);
+
+                    World world = Bukkit.getWorld(unloadedChest.position.getWorldName());
+                    if (world == null || !world.isChunkLoaded(unloadedChest.position.getX() >> 4, unloadedChest.position.getZ() >> 4)) {
+                        plugin.getChestsManager().addUnloadedChest(unloadedChest);
+                        continue;
+                    }
+
+                    WChest chest = plugin.getChestsManager().loadChest(unloadedChest);
+                    if (chest != null)
+                        ChunksListener.handleLoadedChest(plugin, chest);
+                }
+            }
+
+            if (!activationQueue.isEmpty()) {
+                for (int i = 0; i < loadBatchSize && !activationQueue.isEmpty(); i++) {
+                    Chest chest = activationQueue.poll();
+                    if (chest == null)
+                        break;
+
+                    activationQueuedPositions.remove(BlockPosition.of(chest.getLocation()));
+
+                    Location location = chest.getLocation();
+                    World world = location.getWorld();
+                    if (world == null || !world.isChunkLoaded(location.getBlockX() >> 4, location.getBlockZ() >> 4))
+                        continue;
+
+                    ChunksListener.handleLoadedChest(plugin, chest);
+                }
+            }
+        }
+
+        if (!saveQueue.isEmpty() || !loadQueue.isEmpty() || !activationQueue.isEmpty()) {
+            Scheduler.runTask(this::processIoQueues, getQueueInterval());
+        } else {
+            ioTaskScheduled = false;
+        }
+    }
+
+    private long getQueueInterval() {
+        return Math.max(1L, plugin.getSettings().queueIntervalTicks);
     }
 
     public void insertChest(Chest chest) {

@@ -76,6 +76,19 @@ maximum-pickup-delay: 32767
 # You can disable this feature by setting it to -1.
 max-stacks-on-drop: -1
 
+# Performance-related settings to reduce load spikes.
+performance:
+  # How many chests to save per tick when chunks unload.
+  chunk-save-batch: 5
+  # How many chests to load per tick when chunks load.
+  chunk-load-batch: 5
+  # How many ticks between queue processing runs.
+  queue-interval-ticks: 10
+  # How many ticks between particle emissions for chests.
+  particle-interval-ticks: 20
+  # How many ticks between chest work cycles (suction/craft/sell).
+  work-interval-ticks: 20
+
 # The plugin brings tons of new custom and unique chests to your server. All the chests are configurable, and
 # you can create and mix between them. You can create chests that stores infinite amount of items, chests that
 # are connected to player vaults or factions, linked chests and many more!

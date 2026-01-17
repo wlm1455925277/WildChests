@@ -54,7 +54,8 @@ public class TileEntityWildChest extends TileEntityChest implements IWorldInvent
 
     private NonNullList<ItemStack> itemsAsNMSItemsView;
 
-    private short currentCooldown = ChestUtils.DEFAULT_COOLDOWN;
+    private int currentCooldown = 0;
+    private int particleCooldown = 0;
 
     private AxisAlignedBB suctionItems = null;
     private boolean autoCraftMode = false;
@@ -68,6 +69,7 @@ public class TileEntityWildChest extends TileEntityChest implements IWorldInvent
         isTrappedChest = world.getType(blockPosition).getBlock() == Blocks.TRAPPED_CHEST;
         ((WChest) chest).setTileEntityContainer(this);
         updateData();
+        currentCooldown = Math.max(1, plugin.getSettings().workIntervalTicks);
     }
 
     @Override
@@ -184,7 +186,9 @@ public class TileEntityWildChest extends TileEntityChest implements IWorldInvent
         ChestData chestData = chest.getData();
         assert world != null;
 
-        {
+        int particleInterval = plugin.getSettings().particleIntervalTicks;
+        if (particleInterval > 0 && --particleCooldown <= 0) {
+            particleCooldown = particleInterval;
             double x = position.getX() + world.random.nextFloat();
             double y = position.getY() + world.random.nextFloat();
             double z = position.getZ() + world.random.nextFloat();
@@ -207,7 +211,7 @@ public class TileEntityWildChest extends TileEntityChest implements IWorldInvent
             return;
         }
 
-        currentCooldown = ChestUtils.DEFAULT_COOLDOWN;
+        currentCooldown = Math.max(1, plugin.getSettings().workIntervalTicks);
 
         if (suctionItems != null) {
             handleSuctionItems(chestData);
@@ -330,4 +334,3 @@ public class TileEntityWildChest extends TileEntityChest implements IWorldInvent
     }
 
 }
-
