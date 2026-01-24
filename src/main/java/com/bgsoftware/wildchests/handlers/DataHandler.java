@@ -86,8 +86,8 @@ public final class DataHandler {
             return;
 
         for (Chest chest : chestList) {
-            BlockPosition position = BlockPosition.of(chest.getLocation());
-            if (saveQueuedPositions.add(position))
+            BlockPosition position = resolveBlockPosition(chest);
+            if (position != null && saveQueuedPositions.add(position))
                 saveQueue.add(chest);
         }
 
@@ -105,8 +105,8 @@ public final class DataHandler {
 
         if (loadedChests != null && !loadedChests.isEmpty()) {
             for (Chest chest : loadedChests) {
-                BlockPosition position = BlockPosition.of(chest.getLocation());
-                if (activationQueuedPositions.add(position))
+                BlockPosition position = resolveBlockPosition(chest);
+                if (position != null && activationQueuedPositions.add(position))
                     activationQueue.add(chest);
             }
         }
@@ -133,7 +133,7 @@ public final class DataHandler {
 
         transaction
                 .bindObject(serializeInventoriesInternal(pages))
-                .bindObject(serializeLocationInternal(chest.getLocation()))
+                .bindObject(serializeLocationInternal(chest))
                 .newBatch();
 
         return transaction;
@@ -152,7 +152,7 @@ public final class DataHandler {
         transaction
                 .bindObject(serializeItemInternal(chest.getItemStackUnsafe()))
                 .bindObject(chest.getAmount().toString())
-                .bindObject(serializeLocationInternal(chest.getLocation()))
+                .bindObject(serializeLocationInternal(chest))
                 .newBatch();
 
         return transaction;
@@ -166,8 +166,8 @@ public final class DataHandler {
         }
 
         transaction
-                .bindObject(serializeLocationInternal(linkedChest.isLinkedIntoChest() ? linkedChest.getLinkedChest().getLocation() : null))
-                .bindObject(serializeLocationInternal(linkedChest.getLocation()))
+                .bindObject(serializeLocationInternal(linkedChest.isLinkedIntoChest() ? linkedChest.getLinkedChest() : null))
+                .bindObject(serializeLocationInternal(linkedChest))
                 .newBatch();
 
         return transaction;
@@ -214,7 +214,9 @@ public final class DataHandler {
                 Chest chest = saveQueue.poll();
                 if (chest == null)
                     break;
-                saveQueuedPositions.remove(BlockPosition.of(chest.getLocation()));
+                BlockPosition position = resolveBlockPosition(chest);
+                if (position != null)
+                    saveQueuedPositions.remove(position);
                 batch.add(chest);
             }
 
@@ -247,7 +249,9 @@ public final class DataHandler {
                     if (chest == null)
                         break;
 
-                    activationQueuedPositions.remove(BlockPosition.of(chest.getLocation()));
+                    BlockPosition position = resolveBlockPosition(chest);
+                    if (position != null)
+                        activationQueuedPositions.remove(position);
 
                     Location location = chest.getLocation();
                     World world = location.getWorld();
@@ -275,7 +279,7 @@ public final class DataHandler {
             WStorageChest storageChest = (WStorageChest) chest;
             DBSession.execute(new InsertSQLDatabaseTransaction("storage_units",
                     Arrays.asList("location", "placer", "chest_data", "item", "amount", "max_amount"))
-                    .bindObject(serializeLocationInternal(chest.getLocation()))
+                    .bindObject(serializeLocationInternal(chest))
                     .bindObject(chest.getPlacer().toString())
                     .bindObject(chest.getData().getName())
                     .bindObject(serializeItemInternal(storageChest.getItemStackUnsafe()))
@@ -287,16 +291,16 @@ public final class DataHandler {
             boolean isLinkedIntoChest = linkedChest.isLinkedIntoChest();
             DBSession.execute(new InsertSQLDatabaseTransaction("linked_chests",
                     Arrays.asList("location", "placer", "chest_data", "inventories", "linked_chest"))
-                    .bindObject(serializeLocationInternal(chest.getLocation()))
+                    .bindObject(serializeLocationInternal(chest))
                     .bindObject(chest.getPlacer().toString())
                     .bindObject(chest.getData().getName())
                     .bindObject(serializeInventoriesInternal(isLinkedIntoChest ? null : linkedChest.getPages()))
-                    .bindObject(serializeLocationInternal(isLinkedIntoChest ? linkedChest.getLinkedChest().getLocation() : null))
+                    .bindObject(serializeLocationInternal(isLinkedIntoChest ? linkedChest.getLinkedChest() : null))
             );
         } else {
             DBSession.execute(new InsertSQLDatabaseTransaction("chests",
                     Arrays.asList("location", "placer", "chest_data", "inventories"))
-                    .bindObject(serializeLocationInternal(chest.getLocation()))
+                    .bindObject(serializeLocationInternal(chest))
                     .bindObject(chest.getPlacer().toString())
                     .bindObject(chest.getData().getName())
                     .bindObject(serializeInventoriesInternal(chest.getPages()))
@@ -310,7 +314,7 @@ public final class DataHandler {
 
         DBSession.execute(new DeleteSQLDatabaseTransaction(tableName,
                 Arrays.asList("location"))
-                .bindObject(serializeLocationInternal(chest.getLocation()))
+                .bindObject(serializeLocationInternal(chest))
         );
     }
 
@@ -529,8 +533,32 @@ public final class DataHandler {
         return inventories == null || inventories.length == 0 ? "" : plugin.getNMSAdapter().serialize(inventories);
     }
 
+    @Nullable
+    private static BlockPosition resolveBlockPosition(@Nullable Chest chest) {
+        if (chest == null)
+            return null;
+
+        if (chest instanceof WChest)
+            return ((WChest) chest).getBlockPosition();
+
+        Location location = chest.getLocation();
+        return location == null || location.getWorld() == null ? null : BlockPosition.of(location);
+    }
+
+    private static String serializeLocationInternal(@Nullable Chest chest) {
+        return serializeLocationInternal(resolveBlockPosition(chest));
+    }
+
+    private static String serializeLocationInternal(@Nullable BlockPosition blockPosition) {
+        return blockPosition == null ? "" : blockPosition.getWorldName() + ", " + blockPosition.getX() + ", " +
+                blockPosition.getY() + ", " + blockPosition.getZ();
+    }
+
     private static String serializeLocationInternal(@Nullable Location location) {
-        return location == null ? "" : location.getWorld().getName() + ", " + location.getBlockX() + ", " +
+        if (location == null || location.getWorld() == null)
+            return "";
+
+        return location.getWorld().getName() + ", " + location.getBlockX() + ", " +
                 location.getBlockY() + ", " + location.getBlockZ();
     }
 
