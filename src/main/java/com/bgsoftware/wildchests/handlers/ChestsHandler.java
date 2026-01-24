@@ -53,18 +53,24 @@ public final class ChestsHandler implements ChestsManager {
     @Nullable
 
     public Chest getChest(Location location) {
+        if (location == null || location.getWorld() == null)
+            return null;
         return getChest(BlockPosition.of(location), RegularChest.class);
     }
 
     @Override
     @Nullable
     public LinkedChest getLinkedChest(Location location) {
+        if (location == null || location.getWorld() == null)
+            return null;
         return getChest(BlockPosition.of(location), LinkedChest.class);
     }
 
     @Override
     @Nullable
     public StorageChest getStorageChest(Location location) {
+        if (location == null || location.getWorld() == null)
+            return null;
         return getChest(BlockPosition.of(location), StorageChest.class);
     }
 
@@ -110,13 +116,17 @@ public final class ChestsHandler implements ChestsManager {
 
     @Override
     public void removeChest(Chest chest) {
-        chests.remove(BlockPosition.of(chest.getLocation()));
+        BlockPosition position = resolveBlockPosition(chest);
+        if (position == null)
+            return;
 
-        Set<Chest> chunkChests = chestsByChunks.get(ChunkPosition.of(chest.getLocation()));
+        chests.remove(position);
+
+        Set<Chest> chunkChests = chestsByChunks.get(ChunkPosition.of(position));
         if (chunkChests != null)
             chunkChests.remove(chest);
 
-        Set<Chest> worldChests = chestsByWorlds.get(chest.getLocation().getWorld().getName());
+        Set<Chest> worldChests = chestsByWorlds.get(position.getWorldName());
         if (worldChests != null)
             worldChests.remove(chest);
 
@@ -258,11 +268,24 @@ public final class ChestsHandler implements ChestsManager {
                 throw new IllegalArgumentException("Invalid chest at " + location);
         }
 
-        chests.put(BlockPosition.of(location), chest);
-        chestsByChunks.computeIfAbsent(ChunkPosition.of(location), s -> Sets.newConcurrentHashSet()).add(chest);
-        chestsByWorlds.computeIfAbsent(location.getWorld().getName(), s -> Sets.newConcurrentHashSet()).add(chest);
+        BlockPosition position = chest.getBlockPosition();
+        chests.put(position, chest);
+        chestsByChunks.computeIfAbsent(ChunkPosition.of(position), s -> Sets.newConcurrentHashSet()).add(chest);
+        chestsByWorlds.computeIfAbsent(position.getWorldName(), s -> Sets.newConcurrentHashSet()).add(chest);
 
         return chest;
+    }
+
+    @Nullable
+    private BlockPosition resolveBlockPosition(@Nullable Chest chest) {
+        if (chest == null)
+            return null;
+
+        if (chest instanceof WChest)
+            return ((WChest) chest).getBlockPosition();
+
+        Location location = chest.getLocation();
+        return location == null || location.getWorld() == null ? null : BlockPosition.of(location);
     }
 
     private WChest loadChestInternal(UnloadedChest unloadedChest) {

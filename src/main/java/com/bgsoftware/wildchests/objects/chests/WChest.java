@@ -78,6 +78,10 @@ public abstract class WChest implements Chest {
                 this.blockPosition.getX(), this.blockPosition.getY(), this.blockPosition.getZ());
     }
 
+    public BlockPosition getBlockPosition() {
+        return blockPosition;
+    }
+
     @Override
     public ChestData getData() {
         return chestData;
