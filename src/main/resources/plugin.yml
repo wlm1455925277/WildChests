@@ -30,6 +30,7 @@ permissions:
       wildchests.give: true
       wildchests.info: true
       wildchests.link: true
+      wildchests.queue: true
       wildchests.reload: true
       wildchests.save: true
       wildchests.settings: true
@@ -39,6 +40,8 @@ permissions:
     description: Gives access to see information about a chest.
   wildchests.link:
     description: Gives access to link linked chests into other chests.
+  wildchests.queue:
+    description: Gives access to view queue and database stats.
   wildchests.reload:
     description: Gives access to reload all configuration files.
   wildchests.save:

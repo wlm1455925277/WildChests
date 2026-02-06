@@ -99,6 +99,7 @@ public final class WStorageChest extends WChest implements StorageChest {
         contents.set(1, containerItem);
         this.maxStackSize = itemStack == null ? DEFAULT_MAX_STACK_SIZE : BigInteger.valueOf(itemStack.getMaxStackSize());
         plugin.getNMSInventory().createDesignItem(inventory, containerItem.getBukkitItem());
+        markDirty();
     }
 
     @Override
@@ -125,6 +126,7 @@ public final class WStorageChest extends WChest implements StorageChest {
         }
 
         inventory.setTitle(getData().getTitle(1).replace("{0}", amount + ""));
+        markDirty();
     }
 
     @Override
@@ -373,17 +375,22 @@ public final class WStorageChest extends WChest implements StorageChest {
 
     @Override
     public void loadFromData(ChestsHandler.UnloadedChest unloadedChest) {
-        if (!(unloadedChest instanceof ChestsHandler.UnloadedStorageUnit)) {
-            WildChestsPlugin.log("&cCannot load data to chest " + getLocation() + " from " + unloadedChest);
-            return;
+        boolean previous = beginSaveSuppression();
+        try {
+            if (!(unloadedChest instanceof ChestsHandler.UnloadedStorageUnit)) {
+                WildChestsPlugin.log("&cCannot load data to chest " + getLocation() + " from " + unloadedChest);
+                return;
+            }
+
+            ChestsHandler.UnloadedStorageUnit unloadedStorageUnit =
+                    (ChestsHandler.UnloadedStorageUnit) unloadedChest;
+
+            setItemStack(unloadedStorageUnit.itemStack);
+            setAmount(unloadedStorageUnit.amount);
+            setMaxAmount(unloadedStorageUnit.maxAmount);
+        } finally {
+            endSaveSuppression(previous);
         }
-
-        ChestsHandler.UnloadedStorageUnit unloadedStorageUnit =
-                (ChestsHandler.UnloadedStorageUnit) unloadedChest;
-
-        setItemStack(unloadedStorageUnit.itemStack);
-        setAmount(unloadedStorageUnit.amount);
-        setMaxAmount(unloadedStorageUnit.maxAmount);
     }
 
     @Override

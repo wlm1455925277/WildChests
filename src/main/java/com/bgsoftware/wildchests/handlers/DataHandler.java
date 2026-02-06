@@ -61,6 +61,7 @@ public final class DataHandler {
     private final ArrayDeque<Chest> activationQueue = new ArrayDeque<>();
     private final Set<BlockPosition> activationQueuedPositions = new HashSet<>();
     private boolean ioTaskScheduled = false;
+    private volatile boolean shuttingDown = false;
 
     public DataHandler(WildChestsPlugin plugin) {
         this.plugin = plugin;
@@ -78,12 +79,19 @@ public final class DataHandler {
                 Bukkit.getPluginManager().disablePlugin(plugin);
             }
         }, 2L);
+        scheduleAutoSave();
     }
 
     public void enqueueChunkSave(Chunk chunk) {
-        List<Chest> chestList = plugin.getChestsManager().getChests(chunk);
-        if (chestList.isEmpty())
+        if (shuttingDown)
             return;
+        List<Chest> chestList = plugin.getChestsManager().getChests(chunk);
+        if (chestList.isEmpty()) {
+            if (plugin.getSettings().debugEnabled) {
+                debug("Chunk save skipped (no chests) chunk=" + chunk.getX() + "," + chunk.getZ());
+            }
+            return;
+        }
 
         for (Chest chest : chestList) {
             BlockPosition position = resolveBlockPosition(chest);
@@ -92,6 +100,29 @@ public final class DataHandler {
         }
 
         scheduleIoTask();
+        if (plugin.getSettings().debugEnabled) {
+            debug("Chunk save enqueued chunk=" + chunk.getX() + "," + chunk.getZ() +
+                    " chests=" + chestList.size() + " saveQueue=" + saveQueue.size());
+        }
+    }
+
+    public void enqueueChestSave(Chest chest) {
+        if (shuttingDown || !plugin.getSettings().saveOnChange)
+            return;
+
+        if (chest instanceof WChest && ((WChest) chest).isRemoved())
+            return;
+
+        BlockPosition position = resolveBlockPosition(chest);
+        if (position != null && saveQueuedPositions.add(position))
+            saveQueue.add(chest);
+
+        scheduleIoTask();
+        if (plugin.getSettings().debugEnabled && position != null) {
+            debug("Chest save enqueued location=" + position.getWorldName() + "," +
+                    position.getX() + "," + position.getY() + "," + position.getZ() +
+                    " saveQueue=" + saveQueue.size());
+        }
     }
 
     public void enqueueChunkLoad(Chunk chunk) {
@@ -119,6 +150,12 @@ public final class DataHandler {
         }
 
         scheduleIoTask();
+        if (plugin.getSettings().debugEnabled) {
+            debug("Chunk load enqueued chunk=" + chunk.getX() + "," + chunk.getZ() +
+                    " loaded=" + (loadedChests == null ? 0 : loadedChests.size()) +
+                    " unloaded=" + (unloadedChests == null ? 0 : unloadedChests.size()) +
+                    " loadQueue=" + loadQueue.size() + " activationQueue=" + activationQueue.size());
+        }
     }
 
     public SQLDatabaseTransaction<?> saveChestInventory(Chest chest, @Nullable SQLDatabaseTransaction<?> transaction) {
@@ -197,16 +234,29 @@ public final class DataHandler {
     }
 
     private void scheduleIoTask() {
+        if (shuttingDown)
+            return;
         if (ioTaskScheduled)
             return;
 
         ioTaskScheduled = true;
         Scheduler.runTask(this::processIoQueues, getQueueInterval());
+        if (plugin.getSettings().debugEnabled) {
+            debug("Queue task scheduled intervalTicks=" + getQueueInterval());
+        }
     }
 
     private void processIoQueues() {
         int saveBatchSize = Math.max(1, plugin.getSettings().chunkSaveBatchSize);
         int loadBatchSize = Math.max(1, plugin.getSettings().chunkLoadBatchSize);
+        int saved = 0;
+        int loaded = 0;
+        int activated = 0;
+
+        if (plugin.getSettings().debugEnabled) {
+            debug("Queue tick start save=" + saveQueue.size() + " load=" + loadQueue.size() +
+                    " activation=" + activationQueue.size());
+        }
 
         if (!saveQueue.isEmpty()) {
             List<Chest> batch = new ArrayList<>(Math.min(saveBatchSize, saveQueue.size()));
@@ -220,8 +270,10 @@ public final class DataHandler {
                 batch.add(chest);
             }
 
-            if (!batch.isEmpty())
+            if (!batch.isEmpty()) {
+                saved = batch.size();
                 saveDatabase(batch);
+            }
         } else {
             if (!loadQueue.isEmpty()) {
                 for (int i = 0; i < loadBatchSize && !loadQueue.isEmpty(); i++) {
@@ -238,8 +290,10 @@ public final class DataHandler {
                     }
 
                     WChest chest = plugin.getChestsManager().loadChest(unloadedChest);
-                    if (chest != null)
+                    if (chest != null) {
                         ChunksListener.handleLoadedChest(plugin, chest);
+                        loaded++;
+                    }
                 }
             }
 
@@ -259,6 +313,7 @@ public final class DataHandler {
                         continue;
 
                     ChunksListener.handleLoadedChest(plugin, chest);
+                    activated++;
                 }
             }
         }
@@ -268,10 +323,89 @@ public final class DataHandler {
         } else {
             ioTaskScheduled = false;
         }
+
+        if (plugin.getSettings().debugEnabled) {
+            debug("Queue tick end saved=" + saved + " loaded=" + loaded + " activated=" + activated +
+                    " remaining save=" + saveQueue.size() + " load=" + loadQueue.size() +
+                    " activation=" + activationQueue.size());
+        }
     }
 
     private long getQueueInterval() {
         return Math.max(1L, plugin.getSettings().queueIntervalTicks);
+    }
+
+    private void scheduleAutoSave() {
+        long interval = plugin.getSettings().autoSaveIntervalTicks;
+        if (interval <= 0L)
+            return;
+
+        if (plugin.getSettings().debugEnabled) {
+            debug("Auto-save scheduled intervalTicks=" + interval);
+        }
+
+        Scheduler.runRepeatingTaskAsync(() -> {
+            if (shuttingDown || !plugin.isEnabled() || !DBSession.isReady())
+                return;
+
+            if (plugin.getSettings().debugEnabled) {
+                debug("Auto-save triggered");
+            }
+            saveDatabase((Chunk) null);
+        }, interval);
+    }
+
+    public void setShuttingDown(boolean shuttingDown) {
+        this.shuttingDown = shuttingDown;
+        if (plugin.getSettings().debugEnabled) {
+            debug("Shutdown flag set to " + shuttingDown);
+        }
+    }
+
+    public QueueStats getQueueStats() {
+        return new QueueStats(
+                saveQueue.size(),
+                saveQueuedPositions.size(),
+                loadQueue.size(),
+                loadQueuedPositions.size(),
+                activationQueue.size(),
+                activationQueuedPositions.size(),
+                ioTaskScheduled,
+                shuttingDown,
+                DBSession.getPendingCount()
+        );
+    }
+
+    private void debug(String message) {
+        if (plugin.getSettings().debugEnabled) {
+            WildChestsPlugin.log("&7[Debug] " + message);
+        }
+    }
+
+    public static final class QueueStats {
+        public final int saveQueueSize;
+        public final int saveQueuedPositionsSize;
+        public final int loadQueueSize;
+        public final int loadQueuedPositionsSize;
+        public final int activationQueueSize;
+        public final int activationQueuedPositionsSize;
+        public final boolean ioTaskScheduled;
+        public final boolean shuttingDown;
+        public final int pendingDbTransactions;
+
+        public QueueStats(int saveQueueSize, int saveQueuedPositionsSize, int loadQueueSize,
+                          int loadQueuedPositionsSize, int activationQueueSize, int activationQueuedPositionsSize,
+                          boolean ioTaskScheduled, boolean shuttingDown, int pendingDbTransactions) {
+            this.saveQueueSize = saveQueueSize;
+            this.saveQueuedPositionsSize = saveQueuedPositionsSize;
+            this.loadQueueSize = loadQueueSize;
+            this.loadQueuedPositionsSize = loadQueuedPositionsSize;
+            this.activationQueueSize = activationQueueSize;
+            this.activationQueuedPositionsSize = activationQueuedPositionsSize;
+            this.ioTaskScheduled = ioTaskScheduled;
+            this.shuttingDown = shuttingDown;
+            this.pendingDbTransactions = pendingDbTransactions;
+        }
     }
 
     public void insertChest(Chest chest) {

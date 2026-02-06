@@ -43,6 +43,7 @@ public class WRegularChest extends WChest implements RegularChest {
         CraftWildInventory inventory = plugin.getNMSInventory().createInventory(this, size, title, page);
         inventories.set(page, inventory);
         updateTitles();
+        markDirty();
         return inventory;
     }
 
@@ -111,24 +112,30 @@ public class WRegularChest extends WChest implements RegularChest {
             return;
 
         actualPage.setItem(slot, itemStack);
+        markDirty();
     }
 
     @Override
     public void loadFromData(ChestsHandler.UnloadedChest unloadedChest) {
-        if (!(unloadedChest instanceof ChestsHandler.UnloadedRegularChest)) {
-            WildChestsPlugin.log("&cCannot load data to chest " + getLocation() + " from " + unloadedChest);
-            return;
+        boolean previous = beginSaveSuppression();
+        try {
+            if (!(unloadedChest instanceof ChestsHandler.UnloadedRegularChest)) {
+                WildChestsPlugin.log("&cCannot load data to chest " + getLocation() + " from " + unloadedChest);
+                return;
+            }
+
+            ChestsHandler.UnloadedRegularChest unloadedRegularChest =
+                    (ChestsHandler.UnloadedRegularChest) unloadedChest;
+
+            InventoryHolder[] inventories = unloadedRegularChest.inventories;
+            for (int i = 0; i < inventories.length; i++)
+                setPage(i, inventories[i]);
+
+            if (unloadedRegularChest.executeUpdate)
+                plugin.getDataHandler().saveChestInventory(this);
+        } finally {
+            endSaveSuppression(previous);
         }
-
-        ChestsHandler.UnloadedRegularChest unloadedRegularChest =
-                (ChestsHandler.UnloadedRegularChest) unloadedChest;
-
-        InventoryHolder[] inventories = unloadedRegularChest.inventories;
-        for (int i = 0; i < inventories.length; i++)
-            setPage(i, inventories[i]);
-
-        if (unloadedRegularChest.executeUpdate)
-            plugin.getDataHandler().saveChestInventory(this);
     }
 
     private void checkCapacity(int size, int inventorySize, String inventoryTitle) {

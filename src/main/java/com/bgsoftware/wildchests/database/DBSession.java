@@ -16,7 +16,10 @@ import com.bgsoftware.wildchests.WildChestsPlugin;
 import java.io.File;
 import java.sql.ResultSet;
 import java.util.Collection;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 
 public class DBSession {
 
@@ -44,6 +47,7 @@ public class DBSession {
     };
 
     private static SQLDatabaseSession<?> globalSession = null;
+    private static final Set<CompletableFuture<Void>> pendingTransactions = ConcurrentHashMap.newKeySet();
 
     private DBSession() {
 
@@ -65,15 +69,37 @@ public class DBSession {
     }
 
     public static CompletableFuture<Void> execute(IDatabaseTransaction transaction) {
-        return globalSession.execute(transaction);
+        return track(globalSession.execute(transaction));
     }
 
     public static CompletableFuture<Void> execute(IDatabaseTransaction... transactions) {
-        return globalSession.execute(transactions);
+        return track(globalSession.execute(transactions));
     }
 
     public static CompletableFuture<Void> execute(Collection<IDatabaseTransaction> transactions) {
-        return globalSession.execute(transactions);
+        return track(globalSession.execute(transactions));
+    }
+
+    public static boolean awaitPending(long timeoutMillis) {
+        if (pendingTransactions.isEmpty())
+            return true;
+
+        long deadline = System.currentTimeMillis() + Math.max(0L, timeoutMillis);
+        while (true) {
+            CompletableFuture<Void>[] futures = pendingTransactions.toArray(new CompletableFuture[0]);
+            if (futures.length == 0)
+                return true;
+
+            long remaining = deadline - System.currentTimeMillis();
+            if (remaining <= 0L)
+                return false;
+
+            try {
+                CompletableFuture.allOf(futures).get(remaining, TimeUnit.MILLISECONDS);
+            } catch (Exception ignored) {
+                // Individual failures are handled by the DB layer; we only wait for completion.
+            }
+        }
     }
 
     public static void createTable(String tableName, Column... columns) {
@@ -96,6 +122,16 @@ public class DBSession {
             DatabaseTransactionsExecutor.stopActiveExecutors();
             globalSession.close();
         }
+    }
+
+    public static int getPendingCount() {
+        return pendingTransactions.size();
+    }
+
+    private static CompletableFuture<Void> track(CompletableFuture<Void> future) {
+        pendingTransactions.add(future);
+        future.whenComplete((result, error) -> pendingTransactions.remove(future));
+        return future;
     }
 
     private static SQLDatabaseSession<?> createSessionInternal(WildChestsPlugin plugin, boolean logging) {

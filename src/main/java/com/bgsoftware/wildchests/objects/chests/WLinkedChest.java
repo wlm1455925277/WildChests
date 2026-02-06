@@ -144,23 +144,28 @@ public final class WLinkedChest extends WRegularChest implements LinkedChest {
 
     @Override
     public void loadFromData(ChestsHandler.UnloadedChest unloadedChest) {
-        if (!(unloadedChest instanceof ChestsHandler.UnloadedRegularChest)) {
-            WildChestsPlugin.log("&cCannot load data to chest " + getLocation() + " from " + unloadedChest);
-            return;
-        }
-
-        super.loadFromData(unloadedChest);
-
-        Location linkedChestLocation = ((ChestsHandler.UnloadedRegularChest) unloadedChest).linkedChest;
-        if (linkedChestLocation == null)
-            return;
-
-        Scheduler.runTask(() -> {
-            LinkedChest sourceChest = plugin.getChestsManager().getLinkedChest(linkedChestLocation);
-            if (sourceChest != null) {
-                linkIntoChest(sourceChest, false);
+        boolean previous = beginSaveSuppression();
+        try {
+            if (!(unloadedChest instanceof ChestsHandler.UnloadedRegularChest)) {
+                WildChestsPlugin.log("&cCannot load data to chest " + getLocation() + " from " + unloadedChest);
+                return;
             }
-        }, 1L);
+
+            super.loadFromData(unloadedChest);
+
+            Location linkedChestLocation = ((ChestsHandler.UnloadedRegularChest) unloadedChest).linkedChest;
+            if (linkedChestLocation == null)
+                return;
+
+            Scheduler.runTask(() -> {
+                LinkedChest sourceChest = plugin.getChestsManager().getLinkedChest(linkedChestLocation);
+                if (sourceChest != null) {
+                    linkIntoChest(sourceChest, false);
+                }
+            }, 1L);
+        } finally {
+            endSaveSuppression(previous);
+        }
     }
 
     @Override

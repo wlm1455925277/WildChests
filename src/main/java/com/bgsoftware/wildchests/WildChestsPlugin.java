@@ -80,6 +80,7 @@ public final class WildChestsPlugin extends JavaPlugin implements WildChests {
 
         getServer().getPluginManager().registerEvents(new BlockListener(this), this);
         getServer().getPluginManager().registerEvents(new ChunksListener(this), this);
+        getServer().getPluginManager().registerEvents(new com.bgsoftware.wildchests.bedrock.BedrockPagesListener(this), this);
         getServer().getPluginManager().registerEvents(new InventoryListener(this), this);
         getServer().getPluginManager().registerEvents(new PlayerListener(this), this);
 
@@ -106,6 +107,7 @@ public final class WildChestsPlugin extends JavaPlugin implements WildChests {
         if (!shouldEnable)
             return;
 
+        dataHandler.setShuttingDown(true);
         Scheduler.cancelTasks();
 
         //Closing all inventories & closing chests
@@ -125,16 +127,23 @@ public final class WildChestsPlugin extends JavaPlugin implements WildChests {
         for (Player player : Bukkit.getOnlinePlayers())
             player.closeInventory();
 
-        int loadedChunks = 0;
+        int chestsToSave = chestsManager.getChests().size();
+        dataHandler.saveDatabase((Chunk) null);
+        log("Chests to save: " + chestsToSave);
 
-        for (World world : Bukkit.getWorlds()) {
-            for (Chunk chunk : world.getLoadedChunks()) {
-                dataHandler.saveDatabase(chunk);
-                loadedChunks++;
+        long shutdownTimeout = settingsHandler.shutdownSaveTimeoutMs;
+        if (shutdownTimeout > 0L) {
+            if (settingsHandler.debugEnabled) {
+                log("&7[Debug] Waiting for DB writes pending=" + DBSession.getPendingCount() +
+                        " timeoutMs=" + shutdownTimeout);
+            }
+            boolean completed = DBSession.awaitPending(shutdownTimeout);
+            if (!completed)
+                log("Timed out while waiting for database writes to finish.");
+            if (settingsHandler.debugEnabled) {
+                log("&7[Debug] DB writes completed=" + completed + " pending=" + DBSession.getPendingCount());
             }
         }
-
-        log("Chunks to save: " + loadedChunks);
 
         log("Terminating database...");
         DBSession.close();

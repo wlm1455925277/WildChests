@@ -21,6 +21,8 @@ database:
   allowPublicKeyRetrieval: true
   waitTimeout: 600000
   maxLifetime: 1800000
+  # How long to wait on shutdown for DB writes to finish (in milliseconds).
+  shutdown-save-timeout-ms: 15000
 
   # Automatically delete data from invalid worlds.
   invalid-world-delete: false
@@ -76,18 +78,43 @@ maximum-pickup-delay: 32767
 # You can disable this feature by setting it to -1.
 max-stacks-on-drop: -1
 
+# Debug logging for queue and save operations.
+debug:
+  enabled: false
+
 # Performance-related settings to reduce load spikes.
 performance:
   # How many chests to save per tick when chunks unload.
   chunk-save-batch: 5
   # How many chests to load per tick when chunks load.
   chunk-load-batch: 5
+  # How many ticks between automatic full saves. Set to 0 to disable.
+  auto-save-interval-ticks: 12000
+  # When enabled, enqueue saves when chest contents change.
+  save-on-change: true
   # How many ticks between queue processing runs.
   queue-interval-ticks: 10
   # How many ticks between particle emissions for chests.
   particle-interval-ticks: 20
   # How many ticks between chest work cycles (suction/craft/sell).
   work-interval-ticks: 20
+
+# Bedrock page selector (Geyser/Floodgate) for multi-page chests.
+bedrock-pages:
+  enabled: true
+  # Only intercept chests that have more than 1 page.
+  only-multi-page: true
+  # How many page buttons per form before splitting into previous/next pages.
+  buttons-per-form: 20
+  form:
+    title: 超级箱子 ({pages})
+    content: 检测到多页箱子。\n总页数：{pages}\n请选择要打开的页 (第 {page_from} - {page_to} 页)
+    button-format: 第 {page} 页 - {title}
+    prev-label: 上一页
+    next-label: 下一页
+  messages:
+    no-pages: ''
+    form-unavailable: ''
 
 # The plugin brings tons of new custom and unique chests to your server. All the chests are configurable, and
 # you can create and mix between them. You can create chests that stores infinite amount of items, chests that

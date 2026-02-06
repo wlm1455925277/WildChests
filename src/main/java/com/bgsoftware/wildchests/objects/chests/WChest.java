@@ -7,6 +7,7 @@ import com.bgsoftware.wildchests.api.objects.chests.Chest;
 import com.bgsoftware.wildchests.api.objects.data.ChestData;
 import com.bgsoftware.wildchests.api.objects.data.InventoryData;
 import com.bgsoftware.wildchests.handlers.ChestsHandler;
+import com.bgsoftware.wildchests.handlers.DataHandler;
 import com.bgsoftware.wildchests.listeners.InventoryListener;
 import com.bgsoftware.wildchests.objects.containers.TileEntityContainer;
 import com.bgsoftware.wildchests.objects.inventory.CraftWildInventory;
@@ -57,6 +58,7 @@ public abstract class WChest implements Chest {
 
     protected TileEntityContainer tileEntityContainer;
     protected boolean removed = false;
+    private boolean suppressSave = false;
 
     protected WChest(UUID placer, Location location, ChestData chestData) {
         this.placer = placer;
@@ -112,6 +114,28 @@ public abstract class WChest implements Chest {
 
     public void markAsRemoved() {
         removed = true;
+    }
+
+    protected void markDirty() {
+        if (removed || suppressSave)
+            return;
+
+        if (plugin == null)
+            return;
+
+        DataHandler dataHandler = plugin.getDataHandler();
+        if (dataHandler != null)
+            dataHandler.enqueueChestSave(this);
+    }
+
+    protected boolean beginSaveSuppression() {
+        boolean previous = suppressSave;
+        suppressSave = true;
+        return previous;
+    }
+
+    protected void endSaveSuppression(boolean previous) {
+        suppressSave = previous;
     }
 
     /* INVENTORIES / PAGES RELATED METHODS */
@@ -215,13 +239,23 @@ public abstract class WChest implements Chest {
 
     @Override
     public void openPage(Player player, int page) {
+        boolean hadViewers = hasViewersInMap();
+        plugin.getNMSInventory().updateTileEntity(this);
         viewers.put(player.getUniqueId(), this);
+        if (!hadViewers) {
+            plugin.getNMSAdapter().playChestAction(getLocation(), true);
+            debug("openPage -> playChestAction(open) player=" + player.getName() + " page=" + (page + 1));
+        }
         plugin.getNMSInventory().openPage(player, (CraftWildInventory) getPage(page));
     }
 
     @Override
     public void closePage(Player player) {
         viewers.remove(player.getUniqueId());
+        if (!hasViewersInMap()) {
+            plugin.getNMSAdapter().playChestAction(getLocation(), false);
+            debug("closePage -> playChestAction(close) player=" + player.getName());
+        }
     }
 
     @Override
@@ -262,6 +296,10 @@ public abstract class WChest implements Chest {
             return false;
 
         viewers.remove(player.getUniqueId());
+        if (!hasViewersInMap()) {
+            plugin.getNMSAdapter().playChestAction(getLocation(), false);
+            debug("onClose -> playChestAction(close) player=" + player.getName());
+        }
 
         // Remove item in cursor and drop it on ground
         ItemStack itemCursor = player.getItemOnCursor();
@@ -411,6 +449,21 @@ public abstract class WChest implements Chest {
         }
 
         return viewers;
+    }
+
+    private boolean hasViewersInMap() {
+        for (Chest chest : viewers.values()) {
+            if (this.equals(chest)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private void debug(String message) {
+        if (plugin.getSettings() == null || !plugin.getSettings().debugEnabled)
+            return;
+        WildChestsPlugin.log("&7[Debug] " + message);
     }
 
 }

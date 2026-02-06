@@ -41,6 +41,7 @@ public final class SettingsHandler {
     public final boolean databaseMySQLPublicKeyRetrieval;
     public final long databaseMySQLWaitTimeout;
     public final long databaseMySQLMaxLifetime;
+    public final long shutdownSaveTimeoutMs;
     public final long notifyInterval;
     public final boolean detailedNotifier;
     public final boolean confirmGUI;
@@ -53,11 +54,24 @@ public final class SettingsHandler {
     public final boolean wildStackerHook;
     public final int maximumPickupDelay;
     public final int maxStacksOnDrop;
+    public final boolean debugEnabled;
     public final int chunkSaveBatchSize;
     public final int chunkLoadBatchSize;
+    public final long autoSaveIntervalTicks;
+    public final boolean saveOnChange;
     public final int queueIntervalTicks;
     public final int particleIntervalTicks;
     public final int workIntervalTicks;
+    public final boolean bedrockPagesEnabled;
+    public final boolean bedrockPagesOnlyMultiPage;
+    public final int bedrockPagesButtonsPerForm;
+    public final String bedrockPagesFormTitle;
+    public final String bedrockPagesFormContent;
+    public final String bedrockPagesButtonFormat;
+    public final String bedrockPagesPrevLabel;
+    public final String bedrockPagesNextLabel;
+    public final String bedrockPagesMessageNoPages;
+    public final String bedrockPagesMessageFormUnavailable;
 
     public SettingsHandler(WildChestsPlugin plugin) {
         WildChestsPlugin.log("Loading configuration started...");
@@ -87,6 +101,7 @@ public final class SettingsHandler {
         databaseMySQLPublicKeyRetrieval = cfg.getBoolean("database.allowPublicKeyRetrieval");
         databaseMySQLWaitTimeout = cfg.getLong("database.waitTimeout");
         databaseMySQLMaxLifetime = cfg.getLong("database.maxLifetime");
+        shutdownSaveTimeoutMs = cfg.getLong("database.shutdown-save-timeout-ms", 15000L);
         notifyInterval = cfg.getLong("notifier-interval", 12000);
         detailedNotifier = cfg.getBoolean("detailed-notifier", true);
         confirmGUI = cfg.getBoolean("confirm-gui", false);
@@ -99,11 +114,25 @@ public final class SettingsHandler {
         wildStackerHook = cfg.getBoolean("hooks.wildstacker", true);
         maximumPickupDelay = cfg.getInt("maximum-pickup-delay", 32767);
         maxStacksOnDrop = cfg.getInt("max-stacks-on-drop", -1);
+        debugEnabled = cfg.getBoolean("debug.enabled", false);
         chunkSaveBatchSize = cfg.getInt("performance.chunk-save-batch", 5);
         chunkLoadBatchSize = cfg.getInt("performance.chunk-load-batch", 5);
+        autoSaveIntervalTicks = cfg.getLong("performance.auto-save-interval-ticks", 12000L);
+        saveOnChange = cfg.getBoolean("performance.save-on-change", true);
         queueIntervalTicks = cfg.getInt("performance.queue-interval-ticks", 10);
         particleIntervalTicks = cfg.getInt("performance.particle-interval-ticks", 20);
         workIntervalTicks = cfg.getInt("performance.work-interval-ticks", 20);
+        bedrockPagesEnabled = cfg.getBoolean("bedrock-pages.enabled", true);
+        bedrockPagesOnlyMultiPage = cfg.getBoolean("bedrock-pages.only-multi-page", true);
+        bedrockPagesButtonsPerForm = cfg.getInt("bedrock-pages.buttons-per-form", 20);
+        bedrockPagesFormTitle = cfg.getString("bedrock-pages.form.title", "超级箱子 ({pages})");
+        bedrockPagesFormContent = cfg.getString("bedrock-pages.form.content",
+                "检测到多页箱子。\\n总页数：{pages}\\n请选择要打开的页 (第 {page_from} - {page_to} 页)");
+        bedrockPagesButtonFormat = cfg.getString("bedrock-pages.form.button-format", "第 {page} 页 - {title}");
+        bedrockPagesPrevLabel = cfg.getString("bedrock-pages.form.prev-label", "上一页");
+        bedrockPagesNextLabel = cfg.getString("bedrock-pages.form.next-label", "下一页");
+        bedrockPagesMessageNoPages = cfg.getString("bedrock-pages.messages.no-pages", "");
+        bedrockPagesMessageFormUnavailable = cfg.getString("bedrock-pages.messages.form-unavailable", "");
 
         Map<String, Double> prices = new HashMap<>();
 

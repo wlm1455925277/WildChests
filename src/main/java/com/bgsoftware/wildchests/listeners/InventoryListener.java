@@ -106,6 +106,23 @@ public final class InventoryListener implements Listener {
         chest.onClose(e);
     }
 
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void onInventoryCloseForceLid(InventoryCloseEvent e) {
+        Inventory topInventory = e.getView().getTopInventory();
+        if (!(topInventory instanceof CraftWildInventory))
+            return;
+
+        Chest chest = ((CraftWildInventory) topInventory).getOwner();
+        if (chest == null)
+            return;
+
+        Scheduler.runTask(e.getPlayer(), () -> {
+            if (topInventory.getViewers().isEmpty()) {
+                plugin.getNMSAdapter().playChestAction(chest.getLocation(), false);
+            }
+        }, 1L);
+    }
+
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onChestInteract(InventoryClickEvent e) {
         Inventory clickedInventory = e.getView().getTopInventory();
