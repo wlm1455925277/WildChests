@@ -8,9 +8,11 @@ import com.bgsoftware.wildchests.handlers.ChestsHandler;
 import com.bgsoftware.wildchests.objects.inventory.CraftWildInventory;
 import com.bgsoftware.wildchests.objects.inventory.InventoryHolder;
 import com.bgsoftware.wildchests.objects.inventory.WildContainerItem;
+import com.bgsoftware.wildchests.utils.ItemUtils;
 import com.bgsoftware.wildchests.utils.SyncedArray;
 import org.bukkit.Location;
 import org.bukkit.inventory.Inventory;
+import org.bukkit.inventory.ItemStack;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -111,6 +113,10 @@ public class WRegularChest extends WChest implements RegularChest {
         if (actualPage == null)
             return;
 
+        WildContainerItem currentItem = actualPage.getWildItem(slot);
+        if (areItemsEqual(currentItem, itemStack))
+            return;
+
         actualPage.setItem(slot, itemStack);
         markDirty();
     }
@@ -163,6 +169,19 @@ public class WRegularChest extends WChest implements RegularChest {
         for (int i = 0; i < inventories.length(); i++) {
             inventories.get(i).setTitle(getData().getTitle(i + 1).replace("{0}", getPagesAmount() + ""));
         }
+    }
+
+    private boolean areItemsEqual(WildContainerItem currentItem, WildContainerItem newItem) {
+        ItemStack currentStack = currentItem == null ? null : currentItem.getBukkitItem();
+        ItemStack newStack = newItem == null ? null : newItem.getBukkitItem();
+
+        if (ItemUtils.isEmpty(currentStack) && ItemUtils.isEmpty(newStack))
+            return true;
+
+        if (ItemUtils.isEmpty(currentStack) || ItemUtils.isEmpty(newStack))
+            return false;
+
+        return currentStack.isSimilar(newStack) && currentStack.getAmount() == newStack.getAmount();
     }
 
 }

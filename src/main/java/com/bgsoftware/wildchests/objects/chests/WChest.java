@@ -59,6 +59,8 @@ public abstract class WChest implements Chest {
     protected TileEntityContainer tileEntityContainer;
     protected boolean removed = false;
     private boolean suppressSave = false;
+    private static final long DIRTY_TRACE_INTERVAL_MS = 3000L;
+    private static volatile long lastDirtyTraceLogAt = 0L;
 
     protected WChest(UUID placer, Location location, ChestData chestData) {
         this.placer = placer;
@@ -123,9 +125,31 @@ public abstract class WChest implements Chest {
         if (plugin == null)
             return;
 
+        maybeLogDirtyTrace();
         DataHandler dataHandler = plugin.getDataHandler();
         if (dataHandler != null)
             dataHandler.enqueueChestSave(this);
+    }
+    private void maybeLogDirtyTrace() {
+        if (plugin.getSettings() == null || !plugin.getSettings().debugEnabled)
+            return;
+
+        long now = System.currentTimeMillis();
+        if (now - lastDirtyTraceLogAt < DIRTY_TRACE_INTERVAL_MS)
+            return;
+
+        lastDirtyTraceLogAt = now;
+
+        Location location = getLocation();
+        String loc = location == null || location.getWorld() == null ? "unknown"
+                : location.getWorld().getName() + "," + location.getBlockX() + "," +
+                location.getBlockY() + "," + location.getBlockZ();
+
+        WildChestsPlugin.log("&7[Debug] markDirty stack sample at " + loc);
+        StackTraceElement[] stack = Thread.currentThread().getStackTrace();
+        for (int i = 2; i < Math.min(stack.length, 16); i++) {
+            WildChestsPlugin.log("&7[Debug]  at " + stack[i]);
+        }
     }
 
     protected boolean beginSaveSuppression() {

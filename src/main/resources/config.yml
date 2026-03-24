@@ -88,6 +88,9 @@ performance:
   chunk-save-batch: 5
   # How many chests to load per tick when chunks load.
   chunk-load-batch: 5
+  # Debounce window for chunk save enqueues on unload (milliseconds).
+  # Set to 0 to disable.
+  chunk-save-debounce-ms: 0
   # How many ticks between automatic full saves. Set to 0 to disable.
   auto-save-interval-ticks: 12000
   # When enabled, enqueue saves when chest contents change.

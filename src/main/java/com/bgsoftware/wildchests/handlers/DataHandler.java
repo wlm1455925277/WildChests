@@ -44,10 +44,13 @@ import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 @SuppressWarnings("ResultOfMethodCallIgnored")
@@ -60,6 +63,7 @@ public final class DataHandler {
     private final Set<BlockPosition> loadQueuedPositions = new HashSet<>();
     private final ArrayDeque<Chest> activationQueue = new ArrayDeque<>();
     private final Set<BlockPosition> activationQueuedPositions = new HashSet<>();
+    private final Map<String, Long> chunkSaveDebounceMs = new ConcurrentHashMap<>();
     private boolean ioTaskScheduled = false;
     private volatile boolean shuttingDown = false;
 
@@ -85,6 +89,8 @@ public final class DataHandler {
     public void enqueueChunkSave(Chunk chunk) {
         if (shuttingDown)
             return;
+        if (!shouldEnqueueChunkSave(chunk))
+            return;
         List<Chest> chestList = plugin.getChestsManager().getChests(chunk);
         if (chestList.isEmpty()) {
             if (plugin.getSettings().debugEnabled) {
@@ -103,6 +109,34 @@ public final class DataHandler {
         if (plugin.getSettings().debugEnabled) {
             debug("Chunk save enqueued chunk=" + chunk.getX() + "," + chunk.getZ() +
                     " chests=" + chestList.size() + " saveQueue=" + saveQueue.size());
+        }
+    }
+
+    private boolean shouldEnqueueChunkSave(Chunk chunk) {
+        long debounceMs = plugin.getSettings().chunkSaveDebounceMs;
+        if (debounceMs <= 0L)
+            return true;
+
+        long now = System.currentTimeMillis();
+        String key = chunk.getWorld().getUID() + ":" + chunk.getX() + "," + chunk.getZ();
+        Long last = chunkSaveDebounceMs.get(key);
+        if (last != null && now - last < debounceMs)
+            return false;
+
+        chunkSaveDebounceMs.put(key, now);
+        pruneChunkSaveDebounce(now, debounceMs);
+        return true;
+    }
+
+    private void pruneChunkSaveDebounce(long now, long debounceMs) {
+        if (chunkSaveDebounceMs.size() < 2048)
+            return;
+
+        Iterator<Map.Entry<String, Long>> iterator = chunkSaveDebounceMs.entrySet().iterator();
+        while (iterator.hasNext()) {
+            Map.Entry<String, Long> entry = iterator.next();
+            if (now - entry.getValue() >= debounceMs)
+                iterator.remove();
         }
     }
 
@@ -274,47 +308,47 @@ public final class DataHandler {
                 saved = batch.size();
                 saveDatabase(batch);
             }
-        } else {
-            if (!loadQueue.isEmpty()) {
-                for (int i = 0; i < loadBatchSize && !loadQueue.isEmpty(); i++) {
-                    ChestsHandler.UnloadedChest unloadedChest = loadQueue.poll();
-                    if (unloadedChest == null)
-                        break;
+        }
 
-                    loadQueuedPositions.remove(unloadedChest.position);
+        if (!loadQueue.isEmpty()) {
+            for (int i = 0; i < loadBatchSize && !loadQueue.isEmpty(); i++) {
+                ChestsHandler.UnloadedChest unloadedChest = loadQueue.poll();
+                if (unloadedChest == null)
+                    break;
 
-                    World world = Bukkit.getWorld(unloadedChest.position.getWorldName());
-                    if (world == null || !world.isChunkLoaded(unloadedChest.position.getX() >> 4, unloadedChest.position.getZ() >> 4)) {
-                        plugin.getChestsManager().addUnloadedChest(unloadedChest);
-                        continue;
-                    }
+                loadQueuedPositions.remove(unloadedChest.position);
 
-                    WChest chest = plugin.getChestsManager().loadChest(unloadedChest);
-                    if (chest != null) {
-                        ChunksListener.handleLoadedChest(plugin, chest);
-                        loaded++;
-                    }
+                World world = Bukkit.getWorld(unloadedChest.position.getWorldName());
+                if (world == null || !world.isChunkLoaded(unloadedChest.position.getX() >> 4, unloadedChest.position.getZ() >> 4)) {
+                    plugin.getChestsManager().addUnloadedChest(unloadedChest);
+                    continue;
+                }
+
+                WChest chest = plugin.getChestsManager().loadChest(unloadedChest);
+                if (chest != null) {
+                    ChunksListener.handleLoadedChest(plugin, chest);
+                    loaded++;
                 }
             }
+        }
 
-            if (!activationQueue.isEmpty()) {
-                for (int i = 0; i < loadBatchSize && !activationQueue.isEmpty(); i++) {
-                    Chest chest = activationQueue.poll();
-                    if (chest == null)
-                        break;
+        if (!activationQueue.isEmpty()) {
+            for (int i = 0; i < loadBatchSize && !activationQueue.isEmpty(); i++) {
+                Chest chest = activationQueue.poll();
+                if (chest == null)
+                    break;
 
-                    BlockPosition position = resolveBlockPosition(chest);
-                    if (position != null)
-                        activationQueuedPositions.remove(position);
+                BlockPosition position = resolveBlockPosition(chest);
+                if (position != null)
+                    activationQueuedPositions.remove(position);
 
-                    Location location = chest.getLocation();
-                    World world = location.getWorld();
-                    if (world == null || !world.isChunkLoaded(location.getBlockX() >> 4, location.getBlockZ() >> 4))
-                        continue;
+                Location location = chest.getLocation();
+                World world = location.getWorld();
+                if (world == null || !world.isChunkLoaded(location.getBlockX() >> 4, location.getBlockZ() >> 4))
+                    continue;
 
-                    ChunksListener.handleLoadedChest(plugin, chest);
-                    activated++;
-                }
+                ChunksListener.handleLoadedChest(plugin, chest);
+                activated++;
             }
         }
 

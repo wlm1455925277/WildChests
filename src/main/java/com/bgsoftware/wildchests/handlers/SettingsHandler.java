@@ -57,6 +57,7 @@ public final class SettingsHandler {
     public final boolean debugEnabled;
     public final int chunkSaveBatchSize;
     public final int chunkLoadBatchSize;
+    public final long chunkSaveDebounceMs;
     public final long autoSaveIntervalTicks;
     public final boolean saveOnChange;
     public final int queueIntervalTicks;
@@ -117,6 +118,7 @@ public final class SettingsHandler {
         debugEnabled = cfg.getBoolean("debug.enabled", false);
         chunkSaveBatchSize = cfg.getInt("performance.chunk-save-batch", 5);
         chunkLoadBatchSize = cfg.getInt("performance.chunk-load-batch", 5);
+        chunkSaveDebounceMs = cfg.getLong("performance.chunk-save-debounce-ms", 0L);
         autoSaveIntervalTicks = cfg.getLong("performance.auto-save-interval-ticks", 12000L);
         saveOnChange = cfg.getBoolean("performance.save-on-change", true);
         queueIntervalTicks = cfg.getInt("performance.queue-interval-ticks", 10);
