@@ -385,7 +385,7 @@ public final class WStorageChest extends WChest implements StorageChest {
             ChestsHandler.UnloadedStorageUnit unloadedStorageUnit =
                     (ChestsHandler.UnloadedStorageUnit) unloadedChest;
 
-            setItemStack(unloadedStorageUnit.itemStack);
+            setItemStack(unloadedStorageUnit.getItemStack());
             setAmount(unloadedStorageUnit.amount);
             setMaxAmount(unloadedStorageUnit.maxAmount);
         } finally {

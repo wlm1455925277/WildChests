@@ -42,8 +42,8 @@ public class NMSAdapterImpl extends com.bgsoftware.wildchests.nms.v1_21_10.Abstr
     protected ItemStack parseItemStack(CompoundTag compoundTag) {
         DynamicOps<Tag> context = MinecraftServer.getServer().registryAccess().createSerializationContext(NbtOps.INSTANCE);
         return ItemStack.CODEC.parse(context, compoundTag)
-                .resultOrPartial((itemId) -> LOGGER.error("Tried to load invalid item: '{}'", itemId))
-                .orElseThrow();
+                .resultOrPartial((itemId) -> LOGGER.warn("Skipped invalid item while loading WildChests data: '{}'", itemId))
+                .orElse(ItemStack.EMPTY);
     }
 
     @Override

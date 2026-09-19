@@ -133,7 +133,7 @@ public class WRegularChest extends WChest implements RegularChest {
             ChestsHandler.UnloadedRegularChest unloadedRegularChest =
                     (ChestsHandler.UnloadedRegularChest) unloadedChest;
 
-            InventoryHolder[] inventories = unloadedRegularChest.inventories;
+            InventoryHolder[] inventories = unloadedRegularChest.getInventories();
             for (int i = 0; i < inventories.length; i++)
                 setPage(i, inventories[i]);
 

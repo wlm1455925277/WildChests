@@ -321,7 +321,8 @@ public final class ChestsHandler implements ChestsManager {
 
     public static class UnloadedStorageUnit extends UnloadedChest {
 
-        public final ItemStack itemStack;
+        private ItemStack itemStack;
+        private String serializedItem;
         public final BigInteger amount;
         public final BigInteger maxAmount;
 
@@ -333,11 +334,26 @@ public final class ChestsHandler implements ChestsManager {
             this.maxAmount = maxAmount;
         }
 
+        public UnloadedStorageUnit(UUID placer, BlockPosition position, ChestData chestData,
+                                   String serializedItem, BigInteger amount, BigInteger maxAmount) {
+            this(placer, position, chestData, (ItemStack) null, amount, maxAmount);
+            this.serializedItem = serializedItem;
+        }
+
+        public ItemStack getItemStack() {
+            if (serializedItem != null) {
+                itemStack = plugin.getNMSAdapter().deserialzeItem(serializedItem);
+                serializedItem = null;
+            }
+            return itemStack;
+        }
+
     }
 
     public static class UnloadedRegularChest extends UnloadedChest {
 
-        public final InventoryHolder[] inventories;
+        private InventoryHolder[] inventories;
+        private String serializedInventories;
         @Nullable
         public final Location linkedChest;
         public boolean executeUpdate;
@@ -348,6 +364,21 @@ public final class ChestsHandler implements ChestsManager {
             this.inventories = inventories;
             this.linkedChest = linkedChest;
             this.executeUpdate = executeUpdate;
+        }
+
+        // Keep database payloads encoded until their chunk actually needs the contents.
+        public UnloadedRegularChest(UUID placer, BlockPosition position, ChestData chestData,
+                                    String serializedInventories, @Nullable Location linkedChest, boolean executeUpdate) {
+            this(placer, position, chestData, (InventoryHolder[]) null, linkedChest, executeUpdate);
+            this.serializedInventories = serializedInventories;
+        }
+
+        public InventoryHolder[] getInventories() {
+            if (serializedInventories != null) {
+                inventories = plugin.getNMSAdapter().deserialze(serializedInventories);
+                serializedInventories = null;
+            }
+            return inventories;
         }
 
     }

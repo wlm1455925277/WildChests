@@ -9,14 +9,14 @@
 database:
   # For local database, use "SQLite".
   # For remote database, use "MySQL" or "MariaDB" (Depends on your setup).
-  type: SQLite
+  type: MySQL
   # Remote database information
-  address: 'localhost'
+  address: localhost
   port: 3306
-  db-name: 'WildChests'
-  user-name: 'root'
-  password: 'root'
-  prefix: ''
+  db-name: pjz_skyblock_1
+  user-name: pjz_skyblock_1
+  password: '88888888'
+  prefix: wc_
   useSSL: false
   allowPublicKeyRetrieval: true
   waitTimeout: 600000
@@ -52,16 +52,16 @@ explode-drop-chance: 100
 
 # Choose which prices plugin to check for prices:
 # Auto, CMI, EconomyShopGUI, Essentials, ExcellentShop, GUIShop, newtShop, NextGens, QuantumShop, ShopGUIPlus, zShop
-prices-provider: 'WildChests'
+prices-provider: WildChests
 
 # What stacker provider should the plugin use? (WildStacker, RoseStacker, Auto)
-stacker-provider: 'Auto'
+stacker-provider: Auto
 
 # Built-in prices list.
 # Use the "ID:PRICE" or "ID:DATA:PRICE" formats.
 prices-list:
-- 'STONE:5' #Each stone will cost $5
-- 'LOG:0:5' #Only oak logs will cost $5
+- STONE:5
+- LOG:0:5
 
 # All settings related to hooks
 hooks:
@@ -85,9 +85,9 @@ debug:
 # Performance-related settings to reduce load spikes.
 performance:
   # How many chests to save per tick when chunks unload.
-  chunk-save-batch: 5
+  chunk-save-batch: 20
   # How many chests to load per tick when chunks load.
-  chunk-load-batch: 5
+  chunk-load-batch: 20
   # Debounce window for chunk save enqueues on unload (milliseconds).
   # Set to 0 to disable.
   chunk-save-debounce-ms: 0
@@ -96,7 +96,7 @@ performance:
   # When enabled, enqueue saves when chest contents change.
   save-on-change: true
   # How many ticks between queue processing runs.
-  queue-interval-ticks: 10
+  queue-interval-ticks: 20
   # How many ticks between particle emissions for chests.
   particle-interval-ticks: 20
   # How many ticks between chest work cycles (suction/craft/sell).
@@ -160,70 +160,105 @@ bedrock-pages:
 # particles: A list of particles that will be shown to the chest.
 
 chests:
-  linked_chest:
-    chest-mode: LINKED_CHEST
-    title: Linked Chest
-    item:
-      name: '&6Linked Chest &7(Place to active)'
-    particles:
-      - CRIT
-  large_chest:
+  高级箱子:
     chest-mode: CHEST
     size: 6
     item:
-      name: '&aLarge Chest &7(Place to active)'
+      name: '&a高级箱子 &7(放置以激活)'
+      lore:
+      - '&7类型: &e高级箱子'
+      - '&7大小: &f6 行'
+      - '&7容量: &f5 页'
     pages:
-      default: 1
+      default: 5
+      '1':
+        price: 0.0
+        title: '&a高级箱子 &7#1 &8(两边空白左右键翻页)'
       '2':
-        price: 500000.0
-        title: 'Chest #2'
+        price: 0.0
+        title: '&a高级箱子 &7#2 &8(两边空白左右键翻页)'
       '3':
-        price: 1000000.0
-        title: 'Chest #3'
+        price: 0.0
+        title: '&a高级箱子 &7#3 &8(两边空白左右键翻页)'
       '4':
-        price: 2000000.0
-        title: 'Chest #4'
+        price: 0.0
+        title: '&a高级箱子 &7#4 &8(两边空白左右键翻页)'
       '5':
-        price: 3000000.0
-        title: 'Chest #5'
+        price: 0.0
+        title: '&a高级箱子 &7#5 &8(两边空白左右键翻页)'
     particles:
-      - TOTEM
-  sell_chest:
+    - TOTEM
+  超级箱子:
     chest-mode: CHEST
     size: 6
-    title: Drop your items here to sell them.
     item:
-      name: '&dSell Chest &7(Place to active)'
-    sell-mode: true
+      name: '&e超级箱子 &7(放置以激活)'
+      lore:
+      - '&7类型: &e超级箱子'
+      - '&7大小: &f6 行'
+      - '&7容量: &f9 页'
+    pages:
+      default: 9
+      '1':
+        price: 0.0
+        title: '&a超级箱子 &0#1 &8(两边空白左右键翻页)'
+      '2':
+        price: 0.0
+        title: '&a超级箱子 &0#2 &8(两边空白左右键翻页)'
+      '3':
+        price: 0.0
+        title: '&a超级箱子 &0#3 &8(两边空白左右键翻页)'
+      '4':
+        price: 0.0
+        title: '&a超级箱子 &0#4 &8(两边空白左右键翻页)'
+      '5':
+        price: 0.0
+        title: '&a超级箱子 &0#5 &8(两边空白左右键翻页)'
+      '6':
+        price: 0.0
+        title: '&a超级箱子 &0#6 &8(两边空白左右键翻页)'
+      '7':
+        price: 0.0
+        title: '&a超级箱子 &0#7 &8(两边空白左右键翻页)'
+      '8':
+        price: 0.0
+        title: '&a超级箱子 &0#8 &8(两边空白左右键翻页)'
+      '9':
+        price: 0.0
+        title: '&a超级箱子 &0#9 &8(两边空白左右键翻页)'
     particles:
-      - SPELL_WITCH
-  auto_crafter:
+    - TOTEM
+    - FLAME
+  高级收集器:
     chest-mode: CHEST
     size: 6
-    title: Drop your items here to auto-craft them.
+    title: 高级收集器
     item:
-      name: '&cAuto Crafter &7(Place to active)'
-    crafter-chest:
-      - GOLD_INGOT
+      name: '&a高级收集器 &7(放置以激活)'
+      lore:
+      - '&7类型: &e高级收集器'
+      - '&7范围: &f5x5'
+      - '&7高度: &f5 格'
+      - '&7大小: &f6 行'
+    auto-suction:
+      range: 5
+      chunk: false
     particles:
-      - LANDING_LAVA
-  storage_unit:
-    chest-mode: STORAGE_UNIT
-    size: 3
-    title: Storage Unit {0}
-    item:
-      name: '&bStorage Unit &7(Place to active)'
-    particles:
-      - CRIT_MAGIC
-  chunk_collector:
+    - ENCHANTMENT_TABLE
+  区块收集器:
     chest-mode: CHEST
     size: 6
-    title: Chunk Collector
+    title: 区块收集器
     item:
-      name: '&eChunk Collector &7(Place to active)'
+      name: '&e区块收集器 &7(放置以激活)'
+      lore:
+      - '&7类型: &e区块收集器'
+      - '&7范围: &f当前区块 F3+G 键查看区块信息'
+      - '&7高度: &f5 格'
+      - '&7大小: &f6 行'
     auto-suction:
       range: 5
       chunk: true
     particles:
-      - SMOKE_NORMAL
-      - FLAME
+    - ENCHANTMENT_TABLE
+    - FLAME

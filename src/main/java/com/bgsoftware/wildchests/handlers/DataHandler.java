@@ -74,6 +74,7 @@ public final class DataHandler {
                 if (!DBSession.createConnection(plugin)) {
                     WildChestsPlugin.log("Could not connect to database, closing server...");
                     Bukkit.getPluginManager().disablePlugin(plugin);
+                    return;
                 }
 
                 loadDatabase();
@@ -311,7 +312,11 @@ public final class DataHandler {
         }
 
         if (!loadQueue.isEmpty()) {
+            // Item decoding is expensive. Yield between chests as well as limiting the batch size.
+            long loadStarted = System.nanoTime();
             for (int i = 0; i < loadBatchSize && !loadQueue.isEmpty(); i++) {
+                if (i > 0 && System.nanoTime() - loadStarted >= 5_000_000L)
+                    break;
                 ChestsHandler.UnloadedChest unloadedChest = loadQueue.poll();
                 if (unloadedChest == null)
                     break;
@@ -613,7 +618,7 @@ public final class DataHandler {
                 String amount = resultSet.getString("amount");
                 String maxAmount = resultSet.getString("max_amount");
                 unloadedChest = new ChestsHandler.UnloadedStorageUnit(placer, position, chestData,
-                        plugin.getNMSAdapter().deserialzeItem(item), new BigInteger(amount), new BigInteger(maxAmount));
+                        item, new BigInteger(amount), new BigInteger(maxAmount));
             } else {
                 String inventories = resultSet.getString("inventories");
                 Location linkedChest = null;
@@ -622,10 +627,10 @@ public final class DataHandler {
                     linkedChest = LocationUtils.fromString(resultSet.getString("linked_chest"), true);
                 }
 
-                boolean executeUpdate = !inventories.isEmpty() && inventories.toCharArray()[0] != '*';
+                boolean executeUpdate = !inventories.isEmpty() && inventories.charAt(0) != '*';
 
                 unloadedChest = new ChestsHandler.UnloadedRegularChest(placer, position, chestData,
-                        plugin.getNMSAdapter().deserialze(inventories), linkedChest, executeUpdate);
+                        inventories, linkedChest, executeUpdate);
             }
 
             plugin.getChestsManager().addUnloadedChest(unloadedChest);

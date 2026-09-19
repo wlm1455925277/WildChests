@@ -117,19 +117,23 @@ public abstract class AbstractNMSAdapter implements NMSAdapter {
         if (serialized.isEmpty())
             return new org.bukkit.inventory.ItemStack(Material.AIR);
 
-        byte[] buff;
+        try {
+            byte[] buff;
 
-        if (serialized.toCharArray()[0] == '*') {
-            buff = Base64.getDecoder().decode(serialized.substring(1));
-        } else {
-            buff = new BigInteger(serialized, 32).toByteArray();
+            if (serialized.toCharArray()[0] == '*') {
+                buff = Base64.getDecoder().decode(serialized.substring(1));
+            } else {
+                buff = new BigInteger(serialized, 32).toByteArray();
+            }
+
+            ItemStack itemStack = tryDeserializeNoDataVersionItem(new DataInputStream(new ByteArrayInputStream(buff)));
+            if (itemStack != null)
+                return CraftItemStack.asBukkitCopy(itemStack);
+
+            return deserializeItemFromBytes(buff);
+        } catch (Exception ignored) {
+            return new org.bukkit.inventory.ItemStack(Material.AIR);
         }
-
-        ItemStack itemStack = tryDeserializeNoDataVersionItem(new DataInputStream(new ByteArrayInputStream(buff)));
-        if (itemStack != null)
-            return CraftItemStack.asBukkitCopy(itemStack);
-
-        return deserializeItemFromBytes(buff);
     }
 
     @Nullable
@@ -233,9 +237,12 @@ public abstract class AbstractNMSAdapter implements NMSAdapter {
                     new Dynamic<>(NbtOps.INSTANCE, compoundTag), itemVersion, DATA_VERSION).getValue();
         }
 
-        ItemStack itemStack = parseItemStack(compoundTag);
-
-        return CraftItemStack.asCraftMirror(itemStack);
+        try {
+            ItemStack itemStack = parseItemStack(compoundTag);
+            return CraftItemStack.asCraftMirror(itemStack);
+        } catch (Exception ignored) {
+            return new org.bukkit.inventory.ItemStack(Material.AIR);
+        }
     }
 
     private void serializeInventory(Inventory inventory, CompoundTag compoundTag) {
@@ -271,7 +278,10 @@ public abstract class AbstractNMSAdapter implements NMSAdapter {
 
         for (int i = 0; i < itemsList.size(); i++) {
             CompoundTag itemTag = getListTagChildCompound(itemsList, i);
-            inventory.setItem(getCompoundTagInt(itemTag, "Slot", 0), deserializeItemFromCompoundTag(itemTag));
+            try {
+                inventory.setItem(getCompoundTagInt(itemTag, "Slot", 0), deserializeItemFromCompoundTag(itemTag));
+            } catch (Exception ignored) {
+            }
         }
 
         return inventory;
@@ -292,12 +302,20 @@ public abstract class AbstractNMSAdapter implements NMSAdapter {
             throw new RuntimeException(ex);
         }
 
-        return deserializeItemFromBytes(stream.toByteArray());
+        try {
+            return deserializeItemFromBytes(stream.toByteArray());
+        } catch (Exception ignored) {
+            return new org.bukkit.inventory.ItemStack(Material.AIR);
+        }
     }
 
     private org.bukkit.inventory.ItemStack deserializeItemFromCompoundTagNoVersion(CompoundTag tag) {
-        ItemStack itemStack = parseItemStack(tag);
-        return CraftItemStack.asBukkitCopy(itemStack);
+        try {
+            ItemStack itemStack = parseItemStack(tag);
+            return CraftItemStack.asBukkitCopy(itemStack);
+        } catch (Exception ignored) {
+            return new org.bukkit.inventory.ItemStack(Material.AIR);
+        }
     }
 
 }
