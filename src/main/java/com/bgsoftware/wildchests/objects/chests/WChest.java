@@ -35,6 +35,7 @@ import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 
+import javax.annotation.Nullable;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -292,6 +293,10 @@ public abstract class WChest implements Chest {
 
     @Override
     public boolean onBreak(BlockBreakEvent event) {
+        return onBreakInternal(event.getPlayer());
+    }
+
+    protected boolean onBreakInternal(@Nullable Player player) {
         List<ItemStack> chestContents = new LinkedList<>();
         for (int page = 0; page < getPagesAmount(); page++) {
             Inventory inventory = getPage(page);
@@ -299,7 +304,7 @@ public abstract class WChest implements Chest {
             inventory.clear();
         }
 
-        ItemUtils.dropOrCollect(event.getPlayer(), chestContents, getData().isAutoCollect(),
+        ItemUtils.dropOrCollect(player, chestContents, getData().isAutoCollect(),
                 getLocation(), false);
 
         return true;

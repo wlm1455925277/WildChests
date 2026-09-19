@@ -3,6 +3,7 @@ package com.bgsoftware.wildchests.listeners;
 import com.bgsoftware.wildchests.WildChestsPlugin;
 import com.bgsoftware.wildchests.api.objects.chests.Chest;
 import com.bgsoftware.wildchests.objects.chests.WChest;
+import com.bgsoftware.wildchests.utils.ChestUtils;
 import org.bukkit.Chunk;
 import org.bukkit.Location;
 import org.bukkit.Material;
@@ -46,7 +47,7 @@ public final class ChunksListener implements Listener {
     public static void handleLoadedChest(WildChestsPlugin plugin, Chest chest) {
         Location location = chest.getLocation();
         Material blockType = location.getBlock().getType();
-        if (blockType != Material.CHEST) {
+        if (!ChestUtils.isChest(blockType)) {
             int chunkX = location.getBlockX() >> 4;
             int chunkZ = location.getBlockZ() >> 4;
             WildChestsPlugin.log("Loading chunk " + chunkX + ", " + chunkZ + " but found a chest not " +
