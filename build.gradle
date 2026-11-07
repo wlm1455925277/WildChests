@@ -88,6 +88,34 @@ processResources {
 
 subprojects.each { evaluationDependsOn(it.path) }
 
+// Cleanup tests run on a modern JVM; production classes retain their Java 8 target.
+configure([project, project(':Hooks:SuperiorSkyblock')]) {
+    repositories { mavenCentral() }
+    dependencies {
+        testImplementation 'org.junit.jupiter:junit-jupiter:5.11.4'
+        testImplementation 'org.mockito:mockito-core:5.14.1'
+        testImplementation 'org.spigotmc:v1_16_R3:latest'
+        testImplementation project(':API')
+        testRuntimeOnly 'org.junit.platform:junit-platform-launcher:1.11.4'
+    }
+    tasks.named('compileTestJava', JavaCompile) {
+        javaCompiler = javaToolchains.compilerFor { languageVersion = JavaLanguageVersion.of(21) }
+    }
+    tasks.named('test', Test) {
+        useJUnitPlatform()
+        javaLauncher = javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(21) }
+    }
+}
+project(':Hooks:SuperiorSkyblock').dependencies {
+    testImplementation project(':')
+    testImplementation 'com.bgsoftware:SuperiorSkyblockAPI:1.8.2'
+}
+
+// Keep the incomplete Java JAR distinct from the deployable shadow JAR.
+tasks.named('jar') {
+    archiveClassifier.set('plain')
+}
+
 shadowJar {
     relocate 'org.bstats', 'com.bgsoftware.wildchests.libs.org.bstats'
 

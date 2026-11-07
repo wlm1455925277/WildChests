@@ -9,6 +9,7 @@ import com.bgsoftware.wildchests.nms.${NMS_VERSION}.inventory.WildContainerItemI
 import com.bgsoftware.wildchests.nms.${NMS_VERSION}.utils.NMSUtils;
 import com.bgsoftware.wildchests.nms.${NMS_VERSION}.utils.TransformingNonNullList;
 import com.bgsoftware.wildchests.objects.chests.WChest;
+import com.bgsoftware.wildchests.objects.chests.WRegularChest;
 import com.bgsoftware.wildchests.objects.chests.WStorageChest;
 import com.bgsoftware.wildchests.objects.containers.TileEntityContainer;
 import com.bgsoftware.wildchests.utils.ChestUtils;
@@ -50,6 +51,8 @@ public class WildChestBlockEntity extends ChestBlockEntity implements
     private static final WildChestsPlugin plugin = WildChestsPlugin.getPlugin();
 
     private final Chest chest;
+    private NonNullList<ItemStack> contentsView;
+    private int[] hopperSlots;
     protected final ServerLevel serverLevel;
     private final BlockPos blockPos;
     private final boolean isTrappedChest;
@@ -92,6 +95,14 @@ public class WildChestBlockEntity extends ChestBlockEntity implements
 
     @Override
     public NonNullList<ItemStack> getContents() {
+        if (chest instanceof WRegularChest) {
+            if (contentsView == null) {
+                contentsView = TransformingNonNullList.transform(
+                        ((WRegularChest) chest).getWildContentsView(), ItemStack.EMPTY,
+                        WildContainerItemImpl::transform);
+            }
+            return contentsView;
+        }
         return TransformingNonNullList.transform(((WChest) chest).getWildContents(), ItemStack.EMPTY, WildContainerItemImpl::transform);
     }
 
@@ -228,7 +239,8 @@ public class WildChestBlockEntity extends ChestBlockEntity implements
 
     @Override
     public int getContainerSize() {
-        return chest.getPage(0).getSize() * chest.getPagesAmount();
+        return chest instanceof WRegularChest ? ((WRegularChest) chest).getWildContentsView().size() :
+                chest.getPage(0).getSize() * chest.getPagesAmount();
     }
 
     @Override
@@ -262,6 +274,17 @@ public class WildChestBlockEntity extends ChestBlockEntity implements
 
     @Override
     public int[] getSlotsForFace(Direction direction) {
+        // Only cache the standard regular chest layout. Storage units have special
+        // negative slots and must retain their custom slot selection.
+        if (chest.getClass() == WRegularChest.class) {
+            int size = getContainerSize();
+            if (hopperSlots == null || hopperSlots.length != size) {
+                hopperSlots = new int[size];
+                for (int slot = 0; slot < size; slot++)
+                    hopperSlots[slot] = slot;
+            }
+            return hopperSlots;
+        }
         return chest.getSlotsForFace();
     }
 

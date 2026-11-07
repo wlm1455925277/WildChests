@@ -6,6 +6,7 @@ import java.util.stream.Stream;
 public final class SyncedArray<E> {
 
     private Object[] arr;
+    private long revision;
 
     public SyncedArray(int length){
         arr = new Object[length];
@@ -13,11 +14,16 @@ public final class SyncedArray<E> {
 
     public void set(int index, E element){
         arr[index] = element;
+        revision++;
     }
 
     public E get(int index){
         //noinspection all
         return (E) arr[index];
+    }
+
+    public long getRevision() {
+        return revision;
     }
 
     public int length(){
@@ -30,8 +36,10 @@ public final class SyncedArray<E> {
     }
 
     public void increaseCapacity(int newSize){
-        if(newSize > length())
+        if(newSize > length()) {
             arr = Arrays.copyOf(arr, newSize);
+            revision++;
+        }
     }
 
 }

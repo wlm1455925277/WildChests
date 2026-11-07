@@ -1,3 +1,4 @@
+
 #########################################################
 ##                                                     ##
 ##              WildChests Configuration               ##
@@ -5,109 +6,112 @@
 ##                                                     ##
 #########################################################
 
-# All settings related to the database of the plugin.
+# 插件数据库相关的所有设置。
 database:
-  # For local database, use "SQLite".
-  # For remote database, use "MySQL" or "MariaDB" (Depends on your setup).
+  # 使用本地数据库时，填写 "SQLite"。
+  # 使用远程数据库时，填写 "MySQL" 或 "MariaDB"（取决于实际环境）。
   type: MySQL
-  # Remote database information
+  # 远程数据库连接信息
   address: localhost
   port: 3306
-  db-name: pjz_skyblock_1
-  user-name: pjz_skyblock_1
-  password: '88888888'
+  db-name: your_database
+  user-name: your_username
+  password: 'your_password'
   prefix: wc_
   useSSL: false
   allowPublicKeyRetrieval: true
   waitTimeout: 600000
   maxLifetime: 1800000
-  # How long to wait on shutdown for DB writes to finish (in milliseconds).
-  shutdown-save-timeout-ms: 15000
+  # 服务器关闭时，等待数据库写入完成的最长时间（毫秒）。
+  shutdown-save-timeout-ms: 600000
 
-  # Automatically delete data from invalid worlds.
+  # 是否自动删除无效世界中的箱子数据。
   invalid-world-delete: false
 
-# How much time should be passed between sell and crafting notifies? (in ticks)
-# Set 0 to disable this feature.
+# 自动出售和自动合成的消息通知间隔（单位：游戏刻）。
+# 设置为 0 可禁用此功能。
 notifier-interval: 12000
 
-# When enabled there will be a list of items that has been sold and crafted.
+# 启用后，通知中将显示已出售和已合成物品的详细列表。
 detailed-notifier: true
 
-# When enabled, a gui will be popped to confirm chest expand purchase. Otherwise, it will be done in chat.
+# 启用后，购买箱子扩容时将弹出 GUI 界面进行确认。
+# 禁用后，将通过聊天栏进行确认。
 confirm-gui: false
 
-# Specify a command to be executed when a sell is running.
-# {player-name} - use as the player's name
-# {price} - use as the price of item
-# Set to '' in order to disable the feature.
+# 指定自动出售物品时执行的命令。
+# {player-name} - 玩家名称
+# {price} - 物品出售价格
+# 设置为 '' 可禁用此功能。
 sell-command: ''
 
-# When enabled, the values will be formatted (e.g 10B, 1T)
+# 是否对出售金额进行简写格式化（例如 10B、1T）。
 sell-format: false
 
-# Should the chest item be dropped on explosions?
-# Set a chance of it to get dropped between 0 and 100.
+# 箱子被爆炸破坏时，箱子物品的掉落概率。
+# 可设置为 0 至 100。
 explode-drop-chance: 100
 
-# Choose which prices plugin to check for prices:
+# 选择用于获取物品价格的插件：
 # Auto, CMI, EconomyShopGUI, Essentials, ExcellentShop, GUIShop, newtShop, NextGens, QuantumShop, ShopGUIPlus, zShop
 prices-provider: WildChests
 
-# What stacker provider should the plugin use? (WildStacker, RoseStacker, Auto)
+# 选择插件使用的物品堆叠提供者。（WildStacker、RoseStacker、Auto）
 stacker-provider: Auto
 
-# Built-in prices list.
-# Use the "ID:PRICE" or "ID:DATA:PRICE" formats.
+# 插件内置的物品价格列表。
+# 使用 "ID:PRICE" 或 "ID:DATA:PRICE" 格式。
 prices-list:
-- STONE:5
-- LOG:0:5
+  - STONE:5
+  - LOG:0:5
 
-# All settings related to hooks
+# 所有与其他插件联动相关的设置
 hooks:
-  # Should items dropped by the plugin get directly stacked by WildStacker?
+  # SSB2 岛屿确认解散后，清理保护范围内的超级箱子数据（兼容 SSBProxyBridge）。
+  # 普通区块/世界卸载和迁服不会触发；无需开启 database.invalid-world-delete。
+  superiorskyblock-disband-delete: true
+  # 插件掉落的物品是否直接由 WildStacker 进行堆叠？
   wildstacker: true
 
-# The maximum pickup delay items can have for the suction chests to pick them up.
+# 吸取箱子能够拾取的物品最大拾取延迟。
 maximum-pickup-delay: 32767
 
-# The maximum number of stacks of items that can be dropped from a storage unit.
-# Useful when not having a stacking plugin installed, and you don't want a lot
-# of items to be dropped from storage units.
-# Keep in mind, enabling this feature may cause items to be lost on drop.
-# You can disable this feature by setting it to -1.
+# 储存单元被破坏时，最多允许掉落多少组物品。
+# 适用于未安装物品堆叠插件的服务器，可避免大量物品同时掉落。
+# 注意：启用此限制可能导致部分物品在掉落时丢失。
+# 设置为 -1 可禁用此限制。
 max-stacks-on-drop: -1
 
-# Debug logging for queue and save operations.
+# 队列处理与数据保存操作的调试日志。
 debug:
   enabled: false
 
-# Performance-related settings to reduce load spikes.
+# 性能相关设置，用于减少服务器瞬时负载。
 performance:
-  # How many chests to save per tick when chunks unload.
+  # 区块卸载时，每游戏刻最多保存的箱子数量。
   chunk-save-batch: 20
-  # How many chests to load per tick when chunks load.
+  # 区块加载时，每游戏刻最多加载的箱子数量。
   chunk-load-batch: 20
-  # Debounce window for chunk save enqueues on unload (milliseconds).
-  # Set to 0 to disable.
+  # 区块卸载时，箱子保存任务入队的防抖时间（毫秒）。
+  # 设置为 0 可禁用防抖。
   chunk-save-debounce-ms: 0
-  # How many ticks between automatic full saves. Set to 0 to disable.
+  # 自动完整保存的间隔（单位：游戏刻）。设置为 0 可禁用。
   auto-save-interval-ticks: 12000
-  # When enabled, enqueue saves when chest contents change.
+  # 启用后，箱子内容发生变化时将保存任务加入队列。
   save-on-change: true
-  # How many ticks between queue processing runs.
+  # 队列任务的处理间隔（单位：游戏刻）。
   queue-interval-ticks: 20
-  # How many ticks between particle emissions for chests.
+  # 箱子粒子效果的播放间隔（单位：游戏刻）。
   particle-interval-ticks: 20
-  # How many ticks between chest work cycles (suction/craft/sell).
+  # 箱子工作循环的执行间隔（吸取、合成、出售，单位：游戏刻）。
   work-interval-ticks: 20
 
-# Bedrock page selector (Geyser/Floodgate) for multi-page chests.
+# 基岩版多页箱子的页面选择器（Geyser/Floodgate）。
 bedrock-pages:
   enabled: true
-  # Only intercept chests that have more than 1 page.
+  # 是否仅对拥有多个页面的箱子启用页面选择器。
   only-multi-page: true
-  # How many page buttons per form before splitting into previous/next pages.
+  # 每个表单最多显示的页面按钮数量，超过后使用上一页/下一页分页。
   buttons-per-form: 20
   form:
     title: 超级箱子 ({pages})
@@ -119,45 +123,47 @@ bedrock-pages:
     no-pages: ''
     form-unavailable: ''
 
-# The plugin brings tons of new custom and unique chests to your server. All the chests are configurable, and
-# you can create and mix between them. You can create chests that stores infinite amount of items, chests that
-# are connected to player vaults or factions, linked chests and many more!
+# 本插件为服务器提供大量自定义且独特的箱子类型。
+# 所有箱子均可自由配置，也可以组合不同功能。
+# 例如：无限容量储存箱、连接玩家仓库或阵营的箱子、
+# 全局共享的连接箱子，以及其他多种功能箱子。
 #
-# *** Chest Mode ***
-# Chests in this mode react like regular chests. This is the base mode, and used for creating
-# sell chests and larger chests.
+# *** 普通箱子模式（Chest Mode）***
+# 此模式下的箱子与普通箱子类似。
+# 这是最基础的箱子模式，可用于创建自动出售箱和大容量箱子。
 #
-# *** Linked Mode ***
-# Chests in this mode are all linked together, and work like ender chests, but globally.
+# *** 连接箱子模式（Linked Mode）***
+# 此模式下的所有箱子相互连接。
+# 工作方式类似末影箱，但储存内容在全局范围内共享。
 #
-# *** Storage Units Mode ***
-# Chests in this mode will have unlimited amount of storage, but only for one specific item.
-# Note: Auto sell & auto craft modes doesn't work for this mode!
+# *** 储存单元模式（Storage Units Mode）***
+# 此模式下的箱子可以无限储存某一种指定物品。
+# 注意：此模式不支持自动出售和自动合成功能！
 #
-# There are sections that can be applied to all of the chests:
-# size: Amount of rows the chest will have (INTEGER) (Will be overridden by pages' size)
-# title: Global title for all pages. Will be overridden by page's title (STRING)
-# sell-chest: Should items in this chest will be sold to the chest placer? (BOOLEAN)
-# crafter-chest: List of recipes that will take action in this chest (LIST)
-#      Please follow "TYPE" and "TYPE:DATA" formats
-# hopper-filter: When enabled, only craftable items will go into hoppers below (BOOLEAN)
-# pages: Section that handles all settings for pages
-# pages.default: Default amount of pages (INTEGER) [REQUIRED FOR PAGES]
-# pages.<#>: Section that handles all settings for a specific page
-# pages.<#>.price: Price for upgrading to that page (DOUBLE) [REQUIRED]
-# pages.<#>.title: Custom title for that page.
-# item.name: Custom name for the chest (STRING)
-# item.lore: Custom lore for the chest (LIST)
-# multiplier: Money multiplier for sell chests. (DOUBLE)
-# deposit-method: Transfer the money received by the sell chest to a skyblock/faction bank
-#     Currently supported: Vault, SuperiorSkyblock2
-# auto-collect: Should items get directly into inventory after breaking? (BOOLEAN)
-# auto-suction.range: Should items inside the specified range will get suctioned into the chest? (INTEGER)
-# auto-suction.chunk: Should items inside the chunk will get suctioned into the chest? (BOOLEAN)
-#      If you set it to true, the range will be checked as y-range only.
-# blacklist: A list of items that won't be picked up by the chests (only works for auto-suction for now)
-# whitelist: A list of items that will be picked up by the chests (only works for auto-suction for now)
-# particles: A list of particles that will be shown to the chest.
+# 以下配置项可应用于所有箱子类型：
+# size: 箱子的行数（整数），如果页面单独设置了行数，则以页面设置为准。
+# title: 所有页面的默认标题，页面单独设置标题时将覆盖此项。
+# sell-chest: 是否自动出售箱子内的物品，并将收益给予放置者。（布尔值）
+# crafter-chest: 箱子自动执行的合成配方列表。
+#      请使用 "TYPE" 或 "TYPE:DATA" 格式。
+# hopper-filter: 启用后，只有符合合成条件的物品才会进入下方漏斗。（布尔值）
+# pages: 箱子页面的相关设置。
+# pages.default: 箱子默认拥有的页面数量。（整数）[使用多页功能时必填]
+# pages.<#>: 指定页面的独立配置。
+# pages.<#>.price: 解锁或升级至该页面所需的价格。（小数）[必填]
+# pages.<#>.title: 指定页面的自定义标题。
+# item.name: 箱子物品的自定义名称。（字符串）
+# item.lore: 箱子物品的自定义介绍。（列表）
+# multiplier: 自动出售箱子的金币收益倍率。（小数）
+# deposit-method: 将自动出售箱子的金币收益存入空岛或阵营银行。
+#     当前支持：Vault、SuperiorSkyblock2
+# auto-collect: 破坏箱子后，箱子物品是否直接进入玩家背包。（布尔值）
+# auto-suction.range: 自动吸取指定范围内的掉落物。（整数）
+# auto-suction.chunk: 是否吸取当前区块内的掉落物。（布尔值）
+#      设置为 true 时，range 仅用于限制垂直方向的高度范围。
+# blacklist: 禁止箱子吸取的物品列表（目前仅适用于自动吸取）。
+# whitelist: 允许箱子吸取的物品列表（目前仅适用于自动吸取）。
+# particles: 箱子显示的粒子效果列表。
 
 chests:
   高级箱子:
@@ -166,9 +172,9 @@ chests:
     item:
       name: '&a高级箱子 &7(放置以激活)'
       lore:
-      - '&7类型: &e高级箱子'
-      - '&7大小: &f6 行'
-      - '&7容量: &f5 页'
+        - '&7类型: &e高级箱子'
+        - '&7大小: &f6 行'
+        - '&7容量: &f5 页'
     pages:
       default: 5
       '1':
@@ -187,16 +193,16 @@ chests:
         price: 0.0
         title: '&a高级箱子 &7#5 &8(两边空白左右键翻页)'
     particles:
-    - TOTEM
+      - TOTEM
   超级箱子:
     chest-mode: CHEST
     size: 6
     item:
       name: '&e超级箱子 &7(放置以激活)'
       lore:
-      - '&7类型: &e超级箱子'
-      - '&7大小: &f6 行'
-      - '&7容量: &f9 页'
+        - '&7类型: &e超级箱子'
+        - '&7大小: &f6 行'
+        - '&7容量: &f9 页'
     pages:
       default: 9
       '1':
@@ -227,8 +233,8 @@ chests:
         price: 0.0
         title: '&a超级箱子 &0#9 &8(两边空白左右键翻页)'
     particles:
-    - TOTEM
-    - FLAME
+      - TOTEM
+      - FLAME
   高级收集器:
     chest-mode: CHEST
     size: 6
@@ -236,15 +242,15 @@ chests:
     item:
       name: '&a高级收集器 &7(放置以激活)'
       lore:
-      - '&7类型: &e高级收集器'
-      - '&7范围: &f5x5'
-      - '&7高度: &f5 格'
-      - '&7大小: &f6 行'
+        - '&7类型: &e高级收集器'
+        - '&7范围: &f5x5'
+        - '&7高度: &f5 格'
+        - '&7大小: &f6 行'
     auto-suction:
       range: 5
       chunk: false
     particles:
-    - ENCHANTMENT_TABLE
+      - ENCHANTMENT_TABLE
   区块收集器:
     chest-mode: CHEST
     size: 6
@@ -252,13 +258,13 @@ chests:
     item:
       name: '&e区块收集器 &7(放置以激活)'
       lore:
-      - '&7类型: &e区块收集器'
-      - '&7范围: &f当前区块 F3+G 键查看区块信息'
-      - '&7高度: &f5 格'
-      - '&7大小: &f6 行'
+        - '&7类型: &e区块收集器'
+        - '&7范围: &f当前区块 F3+G 键查看区块信息'
+        - '&7高度: &f5 格'
+        - '&7大小: &f6 行'
     auto-suction:
       range: 5
       chunk: true
     particles:
-    - ENCHANTMENT_TABLE
-    - FLAME
+      - ENCHANTMENT_TABLE
+      - FLAME

@@ -111,6 +111,11 @@ public final class WLinkedChest extends WRegularChest implements LinkedChest {
             this.linkedChestsChain.unlinkChest(this, true);
     }
 
+    public void unlinkForDeletion() {
+        if (this.linkedChestsChain != null)
+            this.linkedChestsChain.unlinkChest(this, true);
+    }
+
     @Override
     protected boolean onBreakInternal(@Nullable Player player) {
         if (!isLinkedIntoChest()) {

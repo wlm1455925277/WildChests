@@ -20,6 +20,7 @@ public final class SuperiorSkyblockHook {
     public static void register(WildChestsPlugin plugin) {
         registerCustomKeys(plugin);
         checkMissingInteractables(plugin);
+        plugin.getServer().getPluginManager().registerEvents(new SuperiorSkyblockDisbandListener(plugin), plugin);
     }
 
     private static void registerCustomKeys(WildChestsPlugin plugin) {

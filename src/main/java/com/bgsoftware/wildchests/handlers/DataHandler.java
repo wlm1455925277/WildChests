@@ -57,6 +57,8 @@ import java.util.stream.Collectors;
 public final class DataHandler {
 
     private final WildChestsPlugin plugin;
+    // Includes rows whose chest definition is currently missing and worlds that are unloaded.
+    private final Set<BlockPosition> storedPositions = ConcurrentHashMap.newKeySet();
     private final ArrayDeque<Chest> saveQueue = new ArrayDeque<>();
     private final Set<BlockPosition> saveQueuedPositions = new HashSet<>();
     private final ArrayDeque<ChestsHandler.UnloadedChest> loadQueue = new ArrayDeque<>();
@@ -246,6 +248,8 @@ public final class DataHandler {
     }
 
     public void saveLinkedChest(WLinkedChest linkedChest) {
+        if (linkedChest.isRemoved())
+            return;
         DBSession.execute(saveLinkedChest(linkedChest, null));
     }
 
@@ -255,6 +259,8 @@ public final class DataHandler {
     }
 
     public void saveDatabase(List<Chest> chestList) {
+        chestList = chestList.stream().filter(chest -> !(chest instanceof WChest) || !((WChest) chest).isRemoved())
+                .collect(Collectors.toList());
         if (chestList.isEmpty())
             return;
 
@@ -448,6 +454,7 @@ public final class DataHandler {
     }
 
     public void insertChest(Chest chest) {
+        storedPositions.add(resolveBlockPosition(chest));
         if (chest instanceof StorageChest) {
             WStorageChest storageChest = (WStorageChest) chest;
             DBSession.execute(new InsertSQLDatabaseTransaction("storage_units",
@@ -482,6 +489,7 @@ public final class DataHandler {
     }
 
     public void deleteChest(Chest chest) {
+        storedPositions.remove(resolveBlockPosition(chest));
         String tableName = chest instanceof StorageChest ? "storage_units" :
                 chest instanceof LinkedChest ? "linked_chests" : "chests";
 
@@ -489,6 +497,40 @@ public final class DataHandler {
                 Arrays.asList("location"))
                 .bindObject(serializeLocationInternal(chest))
         );
+    }
+
+    public Set<BlockPosition> getStoredChestPositions() {
+        return new HashSet<>(storedPositions);
+    }
+
+    /** Remove an exact snapshot of positions after a confirmed island disband. No worlds are loaded. */
+    public void deleteChests(Set<BlockPosition> positions) {
+        if (positions.isEmpty())
+            return;
+
+        // Purge all queues before evicting chests: a queued load must never recreate deleted data.
+        saveQueue.removeIf(chest -> positions.contains(resolveBlockPosition(chest)));
+        saveQueuedPositions.removeAll(positions);
+        loadQueue.removeIf(chest -> positions.contains(chest.position));
+        loadQueuedPositions.removeAll(positions);
+        activationQueue.removeIf(chest -> positions.contains(resolveBlockPosition(chest)));
+        activationQueuedPositions.removeAll(positions);
+        plugin.getChestsManager().forgetChests(positions);
+
+        List<IDatabaseTransaction> transactions = new ArrayList<>();
+        for (String table : Arrays.asList("chests", "linked_chests", "storage_units")) {
+            DeleteSQLDatabaseTransaction transaction = new DeleteSQLDatabaseTransaction(table, Arrays.asList("location"));
+            for (BlockPosition position : positions)
+                transaction.bindObject(serializeLocationInternal(position)).newBatch();
+            transactions.add(transaction);
+        }
+        storedPositions.removeAll(positions);
+        DBSession.execute(transactions).whenComplete((ignored, error) -> {
+            if (error != null) {
+                storedPositions.addAll(positions);
+                WildChestsPlugin.log("&cFailed to delete disbanded island chest data; check database errors.");
+            }
+        });
     }
 
     private void saveRegularChestsInternal(List<Chest> chestList, List<IDatabaseTransaction> transactionsToExecute) {
@@ -586,6 +628,8 @@ public final class DataHandler {
 
         while (resultSet.next()) {
             String stringLocation = resultSet.getString("location");
+            BlockPosition position = BlockPosition.deserialize(stringLocation);
+            storedPositions.add(position);
 
             UUID placer = UUID.fromString(resultSet.getString("placer"));
 
@@ -598,14 +642,13 @@ public final class DataHandler {
                 continue;
             }
 
-            BlockPosition position = BlockPosition.deserialize(stringLocation);
-
             if (plugin.getSettings().invalidWorldDelete) {
                 World world = Bukkit.getWorld(position.getWorldName());
                 if (world == null) {
                     deleteNullWorldTransaction.bindObject(stringLocation).newBatch();
                     WildChestsPlugin.log("Deleted spawner (" + stringLocation + ") from database.");
                     calledDeleteTransaction = true;
+                    storedPositions.remove(position);
                     continue;
                 }
             }

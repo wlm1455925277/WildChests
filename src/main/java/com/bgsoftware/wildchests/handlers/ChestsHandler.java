@@ -138,6 +138,50 @@ public final class ChestsHandler implements ChestsManager {
         plugin.getDataHandler().deleteChest(chest);
     }
 
+    /** Evict data without resolving a Bukkit world, decoding items, or dropping their contents. */
+    public void forgetChests(Set<BlockPosition> positions) {
+        for (BlockPosition position : positions) {
+            Map<BlockPosition, UnloadedChest> pending = unloadedChests.get(ChunkPosition.of(position));
+            if (pending != null) {
+                pending.remove(position);
+                if (pending.isEmpty())
+                    unloadedChests.remove(ChunkPosition.of(position), pending);
+            }
+
+            Chest chest = chests.remove(position);
+            if (chest == null)
+                continue;
+            ((WChest) chest).markAsRemoved();
+            if (chest instanceof WLinkedChest)
+                ((WLinkedChest) chest).unlinkForDeletion();
+            Set<Chest> chunkChests = chestsByChunks.get(ChunkPosition.of(position));
+            if (chunkChests != null)
+                chunkChests.remove(chest);
+            Set<Chest> worldChests = chestsByWorlds.get(position.getWorldName());
+            if (worldChests != null)
+                worldChests.remove(chest);
+
+            // Existing viewers must not retain access to an inventory that no longer exists.
+            new HashMap<>(WChest.viewers).forEach((uuid, viewedChest) -> {
+                if (viewedChest == chest) {
+                    WChest.viewers.remove(uuid);
+                    org.bukkit.entity.Player player = Bukkit.getPlayer(uuid);
+                    if (player != null)
+                        Scheduler.runTask(player, player::closeInventory);
+                }
+            });
+
+            World world = Bukkit.getWorld(position.getWorldName());
+            if (world != null && world.isChunkLoaded(position.getX() >> 4, position.getZ() >> 4)) {
+                Scheduler.ensureMain(world, position.getX() >> 4, position.getZ() >> 4, () -> {
+                    // Do not load chunks or remove a replacement chest created in the meantime.
+                    if (!chests.containsKey(position) && world.isChunkLoaded(position.getX() >> 4, position.getZ() >> 4))
+                        plugin.getNMSInventory().removeTileEntity(chest);
+                });
+            }
+        }
+    }
+
     @Override
     public List<LinkedChest> getAllLinkedChests(LinkedChest linkedChest) {
         return linkedChest.getAllLinkedChests();

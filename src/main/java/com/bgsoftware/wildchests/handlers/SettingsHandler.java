@@ -51,6 +51,7 @@ public final class SettingsHandler {
     public final StackerProviderType stackerProvider;
     public final int explodeDropChance;
     public final boolean invalidWorldDelete;
+    public final boolean superiorSkyblockDisbandDelete;
     public final boolean wildStackerHook;
     public final int maximumPickupDelay;
     public final int maxStacksOnDrop;
@@ -112,6 +113,7 @@ public final class SettingsHandler {
         pricesProvider = cfg.getString("prices-provider");
         stackerProvider = StackerProviderType.fromName(cfg.getString("stacker-provider")).orElse(StackerProviderType.AUTO);
         invalidWorldDelete = cfg.getBoolean("database.invalid-world-delete", false);
+        superiorSkyblockDisbandDelete = cfg.getBoolean("hooks.superiorskyblock-disband-delete", true);
         wildStackerHook = cfg.getBoolean("hooks.wildstacker", true);
         maximumPickupDelay = cfg.getInt("maximum-pickup-delay", 32767);
         maxStacksOnDrop = cfg.getInt("max-stacks-on-drop", -1);

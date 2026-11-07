@@ -15,13 +15,21 @@ import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.AbstractList;
 import java.util.List;
 import java.util.Map;
+import java.util.RandomAccess;
 import java.util.UUID;
 
 public class WRegularChest extends WChest implements RegularChest {
 
     protected SyncedArray<CraftWildInventory> inventories;
+    private int[] pageEnds;
+    private SyncedArray<CraftWildInventory> layoutInventories;
+    private long layoutRevision;
+    private List<WildContainerItem>[] pageContents;
+    private final List<WildContainerItem> contentsView = new ContentsView();
 
     public WRegularChest(UUID placer, Location location, ChestData chestData) {
         super(placer, location, chestData);
@@ -44,6 +52,7 @@ public class WRegularChest extends WChest implements RegularChest {
         checkCapacity(page + 1, chestData.getDefaultSize(), chestData.getDefaultTitle());
         CraftWildInventory inventory = plugin.getNMSInventory().createInventory(this, size, title, page);
         inventories.set(page, inventory);
+        rebuildPageLayout();
         updateTitles();
         markDirty();
         return inventory;
@@ -78,46 +87,70 @@ public class WRegularChest extends WChest implements RegularChest {
         return contents;
     }
 
-    @Override
-    public WildContainerItem getWildItem(int i) {
-        Inventory firstPage = getPage(0);
+    // NMS container checks only need a view, not a copy of every inventory page.
+    // Read the current pages on access so replacing or adding a page stays visible.
+    public List<WildContainerItem> getWildContentsView() {
+        return contentsView;
+    }
 
-        if (firstPage == null)
-            return WildContainerItem.AIR.copy();
+    @SuppressWarnings("unchecked")
+    private void rebuildPageLayout() {
+        int[] ends = new int[getPagesAmount()];
+        List<WildContainerItem>[] contents = new List[getPagesAmount()];
+        int total = 0;
+        for (int page = 0; page < ends.length; page++) {
+            contents[page] = inventories.get(page).getWildContents();
+            total += contents[page].size();
+            ends[page] = total;
+        }
+        pageContents = contents;
+        pageEnds = ends;
+        layoutInventories = inventories;
+        layoutRevision = inventories.getRevision();
+    }
 
-        int pageSize = firstPage.getSize();
-        int page = i / pageSize;
-        int slot = i % pageSize;
+    private void ensurePageLayout() {
+        // Linked chests can replace the shared array or resize it through another chest.
+        if (layoutInventories != inventories || layoutRevision != inventories.getRevision())
+            rebuildPageLayout();
+    }
 
-        CraftWildInventory actualPage = (CraftWildInventory) getPage(page);
+    private int findPage(int slot) {
+        if (slot < 0 || slot >= contentsView.size()) return -1;
+        int page = Arrays.binarySearch(pageEnds, slot + 1);
+        return page < 0 ? -page - 1 : page;
+    }
 
-        if (actualPage == null)
-            return WildContainerItem.AIR.copy();
+    private final class ContentsView extends AbstractList<WildContainerItem> implements RandomAccess {
+        @Override
+        public WildContainerItem get(int index) {
+            int page = findPage(index);
+            if (page < 0) throw new IndexOutOfBoundsException("index: " + index);
+            return pageContents[page].get(index - (page == 0 ? 0 : pageEnds[page - 1]));
+        }
 
-        return actualPage.getWildItem(slot);
+        @Override
+        public int size() {
+            ensurePageLayout();
+            return pageEnds == null || pageEnds.length == 0 ? 0 : pageEnds[pageEnds.length - 1];
+        }
     }
 
     @Override
-    public void setItem(int i, WildContainerItem itemStack) {
-        Inventory firstPage = getPage(0);
+    public WildContainerItem getWildItem(int slot) {
+        int page = findPage(slot);
+        return page < 0 ? WildContainerItem.AIR.copy() :
+                pageContents[page].get(slot - (page == 0 ? 0 : pageEnds[page - 1]));
+    }
 
-        if (firstPage == null)
-            return;
-
-        int pageSize = firstPage.getSize();
-        int page = i / pageSize;
-        int slot = i % pageSize;
-
-        CraftWildInventory actualPage = (CraftWildInventory) getPage(page);
-
-        if (actualPage == null)
-            return;
-
-        WildContainerItem currentItem = actualPage.getWildItem(slot);
-        if (areItemsEqual(currentItem, itemStack))
-            return;
-
-        actualPage.setItem(slot, itemStack);
+    @Override
+    public void setItem(int slot, WildContainerItem itemStack) {
+        int page = findPage(slot);
+        if (page < 0) return;
+        int localSlot = slot - (page == 0 ? 0 : pageEnds[page - 1]);
+        CraftWildInventory inventory = inventories.get(page);
+        if (areItemsEqual(inventory.getWildItem(localSlot), itemStack)) return;
+        inventory.setItem(localSlot, itemStack);
         markDirty();
     }
 
@@ -163,6 +196,7 @@ public class WRegularChest extends WChest implements RegularChest {
             String title = pagesData.containsKey(i + 1) ? pagesData.get(i + 1).getTitle() : chestData.getDefaultTitle();
             inventories.set(i, plugin.getNMSInventory().createInventory(this, size, title, i));
         }
+        rebuildPageLayout();
     }
 
     private void updateTitles() {
